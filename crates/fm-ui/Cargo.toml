@@ -1,0 +1,9 @@
+[package]
+name = "fm-ui"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+appcui = { version = "0.4.6", features = ["CROSSTERM"] }
+fm-application = { path = "../fm-application" }
+fm-domain = { path = "../fm-domain" }

@@ -1,0 +1,18 @@
+[package]
+name = "tui_file_manager"
+version = "0.1.0"
+edition = "2021"
+
+[workspace]
+members = [
+    ".",
+    "crates/fm-domain",
+    "crates/fm-application",
+    "crates/fm-infra",
+    "crates/fm-ui",
+]
+
+[dependencies]
+appcui = { version = "*", features = ["CROSSTERM"] }
+fm-ui = { path = "crates/fm-ui" }
+fm-infra = { path = "crates/fm-infra" }
