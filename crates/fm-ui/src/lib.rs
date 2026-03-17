@@ -12,6 +12,7 @@ pub fn run(fs: Arc<dyn FileSystemPort>) -> Result<(), appcui::system::Error> {
     App::new()
         .desktop(MyDesktop::new(fs))
         .app_bar()
+        .command_bar()
         .build()?
         .run();
 
