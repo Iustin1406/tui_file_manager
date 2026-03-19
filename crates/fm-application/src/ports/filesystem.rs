@@ -1,10 +1,11 @@
+use fm_domain::FileNode;
+use std::io;
 use std::path::{Path, PathBuf};
 
-use fm_domain::FileNode;
-
-pub trait FileSystemPort {
+pub trait FileSystemPort: Send + Sync {
     fn current_dir(&self) -> PathBuf;
     fn roots(&self) -> Vec<FileNode>;
     fn list_dir(&self, path: &Path) -> Vec<FileNode>;
     fn exists(&self, path: &Path) -> bool;
+    fn rename(&self, from: &Path, to: &Path) -> io::Result<()>;
 }

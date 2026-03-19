@@ -1,8 +1,7 @@
-use std::sync::Arc;
-
+use appcui::dialogs;
 use appcui::prelude::*;
 use appcui::ui::appbar::*;
-use fm_application::FileSystemPort;
+use fm_application::UiDependencies;
 
 use crate::window::ExplorerWindow;
 
@@ -30,8 +29,9 @@ use crate::window::ExplorerWindow;
     ]
 )]
 pub struct MyDesktop {
-    fs: Arc<dyn FileSystemPort>,
+    deps: UiDependencies,
     next_index: u32,
+    explorer_windows: Vec<Handle<ExplorerWindow>>,
 
     menu_file: Handle<MenuButton>,
     menu_window: Handle<MenuButton>,
@@ -40,11 +40,12 @@ pub struct MyDesktop {
 }
 
 impl MyDesktop {
-    pub fn new(fs: Arc<dyn FileSystemPort>) -> Self {
+    pub fn new(deps: UiDependencies) -> Self {
         Self {
             base: Desktop::new(),
-            fs,
+            deps,
             next_index: 1,
+            explorer_windows: Vec::new(),
             menu_file: Handle::None,
             menu_window: Handle::None,
             menu_view: Handle::None,
@@ -56,10 +57,17 @@ impl MyDesktop {
         let index = self.next_index;
         self.next_index += 1;
 
-        let fs = Arc::clone(&self.fs);
-        let window = ExplorerWindow::new(index, fs);
+        let window = ExplorerWindow::new(index, self.deps.clone());
+        let handle = self.add_window(window);
+        self.explorer_windows.push(handle);
+    }
 
-        self.add_window(window);
+    fn active_explorer_handle(&self) -> Option<Handle<ExplorerWindow>> {
+        self.explorer_windows.iter().copied().find(|handle| {
+            self.windowt(*handle)
+                .map(|window| window.is_active())
+                .unwrap_or(false)
+        })
     }
 
     fn handle_command(&mut self, command: mydesktop::Commands) {
@@ -77,7 +85,9 @@ impl MyDesktop {
 
             mydesktop::Commands::FileOpen => {}
             mydesktop::Commands::FilePreview => {}
-            mydesktop::Commands::FileRename => {}
+            mydesktop::Commands::FileRename => {
+                self.rename_in_active_window();
+            }
             mydesktop::Commands::FileCopy => {}
             mydesktop::Commands::FileMove => {}
             mydesktop::Commands::FileDelete => {}
@@ -95,6 +105,34 @@ impl MyDesktop {
             mydesktop::Commands::Quit => {
                 self.close();
             }
+        }
+    }
+
+    fn rename_in_active_window(&mut self) {
+        let Some(explorer_handle) = self.active_explorer_handle() else {
+            dialogs::error("Rename", "No active ExplorerWindow");
+            return;
+        };
+
+        let Some(window) = self.window_mut(explorer_handle) else {
+            dialogs::error("Rename", "Active ExplorerWindow handle is invalid");
+            return;
+        };
+
+        let initial_name = window.selected_item_name();
+        let result = dialogs::input::<String>(
+            "Rename",
+            "New name:",
+            initial_name,
+            Some(validate_rename_input),
+        );
+
+        let Some(new_name) = result else {
+            return;
+        };
+
+        if let Err(err) = window.rename_selected_to(&new_name) {
+            dialogs::error("Rename", &err.to_string());
         }
     }
 }
@@ -201,4 +239,27 @@ impl MenuEvents for MyDesktop {
     ) {
         self.handle_command(command);
     }
+}
+
+fn validate_rename_input(value: &String) -> Result<(), String> {
+    let trimmed = value.trim();
+
+    if trimmed.is_empty() {
+        return Err("New name cannot be empty".to_string());
+    }
+
+    if trimmed == "." || trimmed == ".." {
+        return Err("New name cannot be . or ..".to_string());
+    }
+
+    if trimmed.contains(std::path::MAIN_SEPARATOR) {
+        return Err("New name must be a single entry name, not a path".to_string());
+    }
+
+    #[cfg(windows)]
+    if trimmed.contains('/') || trimmed.contains('\\') {
+        return Err("New name must not contain path separators".to_string());
+    }
+
+    Ok(())
 }

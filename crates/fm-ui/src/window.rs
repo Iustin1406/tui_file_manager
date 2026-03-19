@@ -1,9 +1,8 @@
-use std::path::PathBuf;
-use std::sync::Arc;
+use std::{io, path::PathBuf};
 
 use appcui::prelude::*;
 use appcui::ui::pathfinder::{Flags as PathFinderFlags, PathFinder};
-use fm_application::FileSystemPort;
+use fm_application::UiDependencies;
 use fm_domain::{FileNode, NodeType};
 
 #[derive(Clone, Copy, Eq, PartialEq)]
@@ -40,7 +39,7 @@ impl From<FileNode> for FileSystemItem {
 #[Window(events = TreeViewEvents<FileSystemItem> + WindowEvents + PathFinderEvents + ButtonEvents)]
 pub struct ExplorerWindow {
     id: u32,
-    fs: Arc<dyn FileSystemPort>,
+    deps: UiDependencies,
     tree: Handle<TreeView<FileSystemItem>>,
     path_caption: Handle<Label>,
     path_viewer: Handle<PathFinder>,
@@ -54,8 +53,9 @@ pub struct ExplorerWindow {
 }
 
 impl ExplorerWindow {
-    pub fn new(index: u32, fs: Arc<dyn FileSystemPort>) -> Self {
-        let path = fs
+    pub fn new(index: u32, deps: UiDependencies) -> Self {
+        let path = deps
+            .fs
             .roots()
             .get(0)
             .map(|node| node.path.clone())
@@ -68,7 +68,7 @@ impl ExplorerWindow {
                 window::Flags::Sizeable,
             ),
             id: index,
-            fs,
+            deps,
             tree: Handle::None,
             path_caption: Handle::None,
             path_viewer: Handle::None,
@@ -137,7 +137,7 @@ impl ExplorerWindow {
         path: &PathBuf,
         parent: Handle<treeview::Item<FileSystemItem>>,
     ) {
-        let nodes = self.fs.list_dir(path);
+        let nodes = self.deps.fs.list_dir(path);
         let items: Vec<FileSystemItem> = nodes.into_iter().map(FileSystemItem::from).collect();
 
         let h = self.tree;
@@ -161,7 +161,9 @@ impl ExplorerWindow {
             });
         }
     }
-
+    fn refresh_current_directory(&mut self) {
+        self.populate_from_path();
+    }
     fn populate_from_path(&mut self) {
         let current_path = self.current_path.clone();
 
@@ -264,6 +266,33 @@ impl ExplorerWindow {
         self.push_history(path.clone());
         self.navigate_to_path(path);
     }
+    fn selected_item_path(&self) -> Option<PathBuf> {
+        let tv = self.control(self.tree)?;
+        let current_item = tv.current_item()?;
+        Some(current_item.value().full_path.clone())
+    }
+    pub fn rename_selected_to(&mut self, new_name: &str) -> io::Result<()> {
+        let source_path = self
+            .selected_item_path()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "No item selected"))?;
+
+        let old_current_path = self.current_path.clone();
+
+        let target_path = self.deps.rename_entry.execute(&source_path, new_name)?;
+
+        if source_path == old_current_path {
+            self.current_path = target_path;
+        }
+
+        self.refresh_current_directory();
+
+        Ok(())
+    }
+    pub fn selected_item_name(&self) -> Option<String> {
+        let tv = self.control(self.tree)?;
+        let current_item = tv.current_item()?;
+        Some(current_item.value().name.clone())
+    }
 }
 
 impl WindowEvents for ExplorerWindow {
@@ -337,7 +366,7 @@ impl PathFinderEvents for ExplorerWindow {
             if let Some(pv) = self.control(handle) {
                 let new_path = pv.path().to_path_buf();
 
-                if self.fs.exists(&new_path) {
+                if self.deps.fs.exists(&new_path) {
                     self.navigate_to_path_with_history(new_path);
                 }
             }

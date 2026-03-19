@@ -14,5 +14,6 @@ members = [
 
 [dependencies]
 appcui = { version = "*", features = ["CROSSTERM"] }
+fm-application = { path = "crates/fm-application" }
 fm-ui = { path = "crates/fm-ui" }
 fm-infra = { path = "crates/fm-infra" }

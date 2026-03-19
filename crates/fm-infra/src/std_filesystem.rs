@@ -1,8 +1,8 @@
-use std::fs;
-use std::path::{Path, PathBuf};
-
 use fm_application::FileSystemPort;
 use fm_domain::{FileNode, NodeType};
+use std::fs;
+use std::io;
+use std::path::{Path, PathBuf};
 
 #[derive(Clone, Default)]
 pub struct StdFileSystem;
@@ -82,5 +82,9 @@ impl FileSystemPort for StdFileSystem {
 
     fn exists(&self, path: &Path) -> bool {
         path.exists()
+    }
+
+    fn rename(&self, from: &Path, to: &Path) -> io::Result<()> {
+        std::fs::rename(from, to)
     }
 }
