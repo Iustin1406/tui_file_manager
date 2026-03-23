@@ -8,4 +8,5 @@ pub trait FileSystemPort: Send + Sync {
     fn list_dir(&self, path: &Path) -> Vec<FileNode>;
     fn exists(&self, path: &Path) -> bool;
     fn rename(&self, from: &Path, to: &Path) -> io::Result<()>;
+    fn copy_entry(&self, source: &Path, destination_dir: &Path) -> io::Result<PathBuf>;
 }

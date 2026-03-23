@@ -13,6 +13,7 @@ use crate::window::ExplorerWindow;
         FileRename,
         FileCopy,
         FileMove,
+        FilePaste,
         FileDelete,
         FileNewDirectory,
         FileProperties,
@@ -88,8 +89,13 @@ impl MyDesktop {
             mydesktop::Commands::FileRename => {
                 self.rename_in_active_window();
             }
-            mydesktop::Commands::FileCopy => {}
+            mydesktop::Commands::FileCopy => {
+                self.copy_in_active_window();
+            }
             mydesktop::Commands::FileMove => {}
+            mydesktop::Commands::FilePaste => {
+                self.paste_in_active_window();
+            }
             mydesktop::Commands::FileDelete => {}
             mydesktop::Commands::FileNewDirectory => {}
             mydesktop::Commands::FileProperties => {}
@@ -105,6 +111,48 @@ impl MyDesktop {
             mydesktop::Commands::Quit => {
                 self.close();
             }
+        }
+    }
+
+    fn copy_in_active_window(&mut self) {
+        let Some(explorer_handle) = self.active_explorer_handle() else {
+            dialogs::error("Copy", "No active ExplorerWindow");
+            return;
+        };
+
+        let Some(window) = self.window_mut(explorer_handle) else {
+            dialogs::error("Copy", "Active ExplorerWindow handle is invalid");
+            return;
+        };
+
+        if let Err(err) = window.copy_selected() {
+            dialogs::error("Copy", &err.to_string());
+        }
+    }
+
+    fn paste_in_active_window(&mut self) {
+        dialogs::error(
+            "Debug",
+            &format!("Clipboard entries: {}", self.deps.clipboard.len()),
+        );
+
+        if self.deps.clipboard.is_empty() {
+            dialogs::error("Paste", "Clipboard is empty at desktop level");
+            return;
+        }
+
+        let Some(explorer_handle) = self.active_explorer_handle() else {
+            dialogs::error("Paste", "No active ExplorerWindow");
+            return;
+        };
+
+        let Some(window) = self.window_mut(explorer_handle) else {
+            dialogs::error("Paste", "Active ExplorerWindow handle is invalid");
+            return;
+        };
+
+        if let Err(err) = window.paste_from_clipboard() {
+            dialogs::error("Paste", &err.to_string());
         }
     }
 
@@ -148,7 +196,8 @@ impl DesktopEvents for MyDesktop {
                     {'&Preview',cmd:FilePreview},
                     {'&Rename',cmd:FileRename},
                     {'&Copy',cmd:FileCopy},
-                    {'&Move',cmd:FileMove},
+                    {'Mo&ve',cmd:FileMove},
+                    {'&Paste',cmd:FilePaste},
                     {'&Delete',cmd:FileDelete},
                     {'New &Directory',cmd:FileNewDirectory},
                     {'&Properties',cmd:FileProperties}
@@ -220,7 +269,7 @@ impl CommandBarEvents for MyDesktop {
         commandbar.set(key!("F2"), "Rename", mydesktop::Commands::FileRename);
         commandbar.set(key!("F5"), "Copy", mydesktop::Commands::FileCopy);
         commandbar.set(key!("F6"), "Move", mydesktop::Commands::FileMove);
-        commandbar.set(key!("F7"), "MkDir", mydesktop::Commands::FileNewDirectory);
+        commandbar.set(key!("F7"), "Paste", mydesktop::Commands::FilePaste);
         commandbar.set(key!("F8"), "Delete", mydesktop::Commands::FileDelete);
         commandbar.set(key!("F10"), "Quit", mydesktop::Commands::Quit);
     }

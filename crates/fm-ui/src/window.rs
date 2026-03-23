@@ -161,9 +161,11 @@ impl ExplorerWindow {
             });
         }
     }
+
     fn refresh_current_directory(&mut self) {
         self.populate_from_path();
     }
+
     fn populate_from_path(&mut self) {
         let current_path = self.current_path.clone();
 
@@ -266,11 +268,47 @@ impl ExplorerWindow {
         self.push_history(path.clone());
         self.navigate_to_path(path);
     }
+
     fn selected_item_path(&self) -> Option<PathBuf> {
         let tv = self.control(self.tree)?;
         let current_item = tv.current_item()?;
         Some(current_item.value().full_path.clone())
     }
+
+    pub fn copy_selected(&self) -> io::Result<()> {
+        let source_path = self
+            .selected_item_path()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "No item selected"))?;
+
+        self.deps.copy_selection.execute(&source_path)
+    }
+
+    fn paste_target_directory(&self) -> PathBuf {
+        let Some(tv) = self.control(self.tree) else {
+            return self.current_path.clone();
+        };
+
+        let Some(current_item) = tv.current_item() else {
+            return self.current_path.clone();
+        };
+
+        let item = current_item.value();
+
+        match item.entry_type {
+            FileSystemType::Directory | FileSystemType::Root => item.full_path.clone(),
+            FileSystemType::File => self.current_path.clone(),
+        }
+    }
+
+    pub fn paste_from_clipboard(&mut self) -> io::Result<()> {
+        let destination_dir = self.paste_target_directory();
+
+        self.deps.paste_entries.execute(&destination_dir)?;
+        self.refresh_current_directory();
+
+        Ok(())
+    }
+
     pub fn rename_selected_to(&mut self, new_name: &str) -> io::Result<()> {
         let source_path = self
             .selected_item_path()
@@ -288,6 +326,7 @@ impl ExplorerWindow {
 
         Ok(())
     }
+
     pub fn selected_item_name(&self) -> Option<String> {
         let tv = self.control(self.tree)?;
         let current_item = tv.current_item()?;

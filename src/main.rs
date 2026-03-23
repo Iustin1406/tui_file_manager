@@ -1,16 +1,25 @@
 use std::sync::Arc;
 
-use fm_application::{FileSystemPort, RenameEntryUseCase, UiDependencies};
+use fm_application::{
+    ClipboardState, CopySelectionUseCase, PasteEntriesUseCase, RenameEntryUseCase, UiDependencies,
+};
 use fm_infra::StdFileSystem;
 
 fn main() -> Result<(), appcui::system::Error> {
-    let fs: Arc<dyn FileSystemPort> = Arc::new(StdFileSystem::default());
-    let rename_use_case = Arc::new(RenameEntryUseCase::new(fs.clone()));
+    let fs = Arc::new(StdFileSystem);
+    let clipboard = Arc::new(ClipboardState::new());
 
-    let ui_dependencies = UiDependencies {
+    let rename_entry = Arc::new(RenameEntryUseCase::new(fs.clone()));
+    let copy_selection = Arc::new(CopySelectionUseCase::new(clipboard.clone()));
+    let paste_entries = Arc::new(PasteEntriesUseCase::new(fs.clone(), clipboard.clone()));
+
+    let deps = UiDependencies {
         fs,
-        rename_entry: rename_use_case,
+        clipboard,
+        copy_selection,
+        paste_entries,
+        rename_entry,
     };
 
-    fm_ui::run(ui_dependencies)
+    fm_ui::run(deps)
 }
