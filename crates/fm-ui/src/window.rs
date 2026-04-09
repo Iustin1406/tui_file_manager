@@ -115,6 +115,16 @@ impl ExplorerWindow {
         w
     }
 
+    pub fn id(&self) -> u32 {
+        self.id
+    }
+
+    fn mark_as_active(&self) {
+        if let Ok(mut guard) = self.deps.active_window_id.lock() {
+            *guard = Some(self.id);
+        }
+    }
+
     fn update_path_viewer(&mut self) {
         let path_clone = self.current_path.clone();
         self.update_path_viewer_to(&path_clone);
@@ -336,6 +346,8 @@ impl ExplorerWindow {
 
 impl WindowEvents for ExplorerWindow {
     fn on_activate(&mut self) {
+        self.mark_as_active();
+
         if !self.initialized {
             self.populate_from_path();
             self.initialized = true;
@@ -349,6 +361,8 @@ impl TreeViewEvents<FileSystemItem> for ExplorerWindow {
         _: Handle<TreeView<FileSystemItem>>,
         item_handle: Handle<treeview::Item<FileSystemItem>>,
     ) -> EventProcessStatus {
+        self.mark_as_active();
+
         if self.syncing_path {
             return EventProcessStatus::Ignored;
         }
@@ -367,6 +381,8 @@ impl TreeViewEvents<FileSystemItem> for ExplorerWindow {
         item_handle: Handle<treeview::Item<FileSystemItem>>,
         _: bool,
     ) -> EventProcessStatus {
+        self.mark_as_active();
+
         if let Some(tv) = self.control_mut(tv) {
             tv.clear_search();
             tv.delete_item_children(item_handle);
@@ -384,6 +400,8 @@ impl TreeViewEvents<FileSystemItem> for ExplorerWindow {
         _: Handle<TreeView<FileSystemItem>>,
         item_handle: Handle<treeview::Item<FileSystemItem>>,
     ) -> EventProcessStatus {
+        self.mark_as_active();
+
         if self.item_is_directory_like(item_handle) {
             if let Some(path) = self.item_to_path(item_handle) {
                 self.navigate_to_path_with_history(path);
@@ -397,6 +415,8 @@ impl TreeViewEvents<FileSystemItem> for ExplorerWindow {
 
 impl PathFinderEvents for ExplorerWindow {
     fn on_path_updated(&mut self, handle: Handle<PathFinder>) -> EventProcessStatus {
+        self.mark_as_active();
+
         if self.syncing_path {
             return EventProcessStatus::Ignored;
         }
@@ -417,6 +437,8 @@ impl PathFinderEvents for ExplorerWindow {
 
 impl ButtonEvents for ExplorerWindow {
     fn on_pressed(&mut self, handle: Handle<Button>) -> EventProcessStatus {
+        self.mark_as_active();
+
         if handle == self.back_button {
             if self.history_index > 0 {
                 self.history_index -= 1;

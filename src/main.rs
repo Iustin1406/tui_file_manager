@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use fm_application::{
     ClipboardState, CopySelectionUseCase, PasteEntriesUseCase, RenameEntryUseCase, UiDependencies,
@@ -19,6 +19,7 @@ fn main() -> Result<(), appcui::system::Error> {
         copy_selection,
         paste_entries,
         rename_entry,
+        active_window_id: Arc::new(Mutex::new(None)),
     };
 
     fm_ui::run(deps)

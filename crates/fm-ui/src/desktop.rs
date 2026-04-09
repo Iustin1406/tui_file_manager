@@ -61,12 +61,23 @@ impl MyDesktop {
         let window = ExplorerWindow::new(index, self.deps.clone());
         let handle = self.add_window(window);
         self.explorer_windows.push(handle);
+
+        if let Ok(mut guard) = self.deps.active_window_id.lock() {
+            *guard = Some(index);
+        }
     }
 
     fn active_explorer_handle(&self) -> Option<Handle<ExplorerWindow>> {
+        let active_id = self
+            .deps
+            .active_window_id
+            .lock()
+            .ok()
+            .and_then(|guard| *guard)?;
+
         self.explorer_windows.iter().copied().find(|handle| {
             self.windowt(*handle)
-                .map(|window| window.is_active())
+                .map(|window| window.id() == active_id)
                 .unwrap_or(false)
         })
     }
@@ -131,11 +142,6 @@ impl MyDesktop {
     }
 
     fn paste_in_active_window(&mut self) {
-        dialogs::error(
-            "Debug",
-            &format!("Clipboard entries: {}", self.deps.clipboard.len()),
-        );
-
         if self.deps.clipboard.is_empty() {
             dialogs::error("Paste", "Clipboard is empty at desktop level");
             return;
