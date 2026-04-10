@@ -172,7 +172,11 @@ impl ExplorerWindow {
         }
     }
 
-    fn refresh_current_directory(&mut self) {
+    pub fn current_path(&self) -> &std::path::Path {
+        &self.current_path
+    }
+
+    pub fn refresh(&mut self) {
         self.populate_from_path();
     }
 
@@ -293,6 +297,14 @@ impl ExplorerWindow {
         self.deps.copy_selection.execute(&source_path)
     }
 
+    pub fn move_selected(&self) -> io::Result<()> {
+        let source_path = self
+            .selected_item_path()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "No item selected"))?;
+
+        self.deps.move_selection.execute(&source_path)
+    }
+
     fn paste_target_directory(&self) -> PathBuf {
         let Some(tv) = self.control(self.tree) else {
             return self.current_path.clone();
@@ -314,7 +326,7 @@ impl ExplorerWindow {
         let destination_dir = self.paste_target_directory();
 
         self.deps.paste_entries.execute(&destination_dir)?;
-        self.refresh_current_directory();
+        self.refresh();
 
         Ok(())
     }
@@ -332,7 +344,7 @@ impl ExplorerWindow {
             self.current_path = target_path;
         }
 
-        self.refresh_current_directory();
+        self.refresh();
 
         Ok(())
     }

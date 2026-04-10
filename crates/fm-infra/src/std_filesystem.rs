@@ -192,4 +192,73 @@ impl FileSystemPort for StdFileSystem {
 
         Ok(destination_path)
     }
+
+    fn move_entry(&self, source: &Path, destination_dir: &Path) -> io::Result<PathBuf> {
+        if !source.exists() {
+            return Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                format!("Source does not exist: {}", source.display()),
+            ));
+        }
+
+        if !destination_dir.exists() {
+            return Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                format!(
+                    "Destination directory does not exist: {}",
+                    destination_dir.display()
+                ),
+            ));
+        }
+
+        if !destination_dir.is_dir() {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                format!(
+                    "Destination is not a directory: {}",
+                    destination_dir.display()
+                ),
+            ));
+        }
+
+        let entry_name = source.file_name().ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::InvalidInput,
+                format!("Source has no final path component: {}", source.display()),
+            )
+        })?;
+
+        let destination_path = destination_dir.join(entry_name);
+
+        if destination_path.exists() {
+            return Err(io::Error::new(
+                io::ErrorKind::AlreadyExists,
+                format!("Destination already exists: {}", destination_path.display()),
+            ));
+        }
+
+        if source == destination_path {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                format!("Source and destination are identical: {}", source.display()),
+            ));
+        }
+
+        let metadata = fs::symlink_metadata(source)?;
+
+        if metadata.is_dir() && Self::is_subpath(destination_dir, source) {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                format!(
+                    "Cannot move a directory into itself or one of its descendants: {} -> {}",
+                    source.display(),
+                    destination_dir.display()
+                ),
+            ));
+        }
+
+        fs::rename(source, &destination_path)?;
+
+        Ok(destination_path)
+    }
 }

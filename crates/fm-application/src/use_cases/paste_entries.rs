@@ -35,7 +35,7 @@ impl PasteEntriesUseCase {
 
         let mut results = Vec::new();
 
-        for entry in entries {
+        for entry in &entries {
             match entry.mode {
                 ClipboardMode::Copy => {
                     let result_path = self.fs.copy_entry(&entry.source_path, destination_dir)?;
@@ -43,12 +43,17 @@ impl PasteEntriesUseCase {
                 }
 
                 ClipboardMode::Move => {
-                    return Err(io::Error::new(
-                        io::ErrorKind::Unsupported,
-                        "Move not implemented yet",
-                    ));
+                    let result_path = self.fs.move_entry(&entry.source_path, destination_dir)?;
+                    results.push(result_path);
                 }
             }
+        }
+
+        if entries
+            .iter()
+            .any(|e| matches!(e.mode, ClipboardMode::Move))
+        {
+            self.clipboard.clear();
         }
 
         Ok(results)

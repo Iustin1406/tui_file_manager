@@ -103,7 +103,9 @@ impl MyDesktop {
             mydesktop::Commands::FileCopy => {
                 self.copy_in_active_window();
             }
-            mydesktop::Commands::FileMove => {}
+            mydesktop::Commands::FileMove => {
+                self.move_in_active_window();
+            }
             mydesktop::Commands::FilePaste => {
                 self.paste_in_active_window();
             }
@@ -141,11 +143,35 @@ impl MyDesktop {
         }
     }
 
+    fn move_in_active_window(&mut self) {
+        let Some(explorer_handle) = self.active_explorer_handle() else {
+            dialogs::error("Move", "No active ExplorerWindow");
+            return;
+        };
+
+        let Some(window) = self.window_mut(explorer_handle) else {
+            dialogs::error("Move", "Active ExplorerWindow handle is invalid");
+            return;
+        };
+
+        if let Err(err) = window.move_selected() {
+            dialogs::error("Move", &err.to_string());
+        }
+    }
+
     fn paste_in_active_window(&mut self) {
         if self.deps.clipboard.is_empty() {
             dialogs::error("Paste", "Clipboard is empty at desktop level");
             return;
         }
+
+        let source_dirs: Vec<std::path::PathBuf> = self
+            .deps
+            .clipboard
+            .get_entries()
+            .into_iter()
+            .filter_map(|entry| entry.source_path.parent().map(|p| p.to_path_buf()))
+            .collect();
 
         let Some(explorer_handle) = self.active_explorer_handle() else {
             dialogs::error("Paste", "No active ExplorerWindow");
@@ -159,6 +185,17 @@ impl MyDesktop {
 
         if let Err(err) = window.paste_from_clipboard() {
             dialogs::error("Paste", &err.to_string());
+            return;
+        }
+
+        let handles: Vec<Handle<ExplorerWindow>> = self.explorer_windows.to_vec();
+
+        for handle in handles {
+            if let Some(window) = self.window_mut(handle) {
+                if source_dirs.iter().any(|dir| window.current_path() == dir) {
+                    window.refresh();
+                }
+            }
         }
     }
 
