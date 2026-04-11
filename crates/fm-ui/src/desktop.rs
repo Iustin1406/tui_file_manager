@@ -14,7 +14,8 @@ use crate::window::ExplorerWindow;
         FileCopy,
         FileMove,
         FilePaste,
-        FileDelete,
+        FileMoveToTrash,
+        FileDeletePermanently,
         FileNewDirectory,
         FileProperties,
         WindowNew,
@@ -109,7 +110,12 @@ impl MyDesktop {
             mydesktop::Commands::FilePaste => {
                 self.paste_in_active_window();
             }
-            mydesktop::Commands::FileDelete => {}
+            mydesktop::Commands::FileMoveToTrash => {
+                self.move_to_trash_in_active_window();
+            }
+            mydesktop::Commands::FileDeletePermanently => {
+                self.delete_permanently_in_active_window();
+            }
             mydesktop::Commands::FileNewDirectory => {}
             mydesktop::Commands::FileProperties => {}
 
@@ -159,6 +165,81 @@ impl MyDesktop {
         }
     }
 
+    fn move_to_trash_in_active_window(&mut self) {
+        let Some(explorer_handle) = self.active_explorer_handle() else {
+            dialogs::error("Move to Trash", "No active ExplorerWindow");
+            return;
+        };
+
+        let Some(window) = self.window_mut(explorer_handle) else {
+            dialogs::error("Move to Trash", "Active ExplorerWindow handle is invalid");
+            return;
+        };
+
+        let confirmed = dialogs::proceed("Move to Trash", "Move selected item to Trash?");
+
+        if !confirmed {
+            return;
+        }
+
+        let source_dir = window.current_path().to_path_buf();
+
+        if let Err(err) = window.move_selected_to_trash() {
+            dialogs::error("Move to Trash", &err.to_string());
+            return;
+        }
+
+        let handles: Vec<Handle<ExplorerWindow>> = self.explorer_windows.to_vec();
+
+        for handle in handles {
+            if let Some(window) = self.window_mut(handle) {
+                if window.current_path() == source_dir {
+                    window.refresh();
+                }
+            }
+        }
+    }
+
+    fn delete_permanently_in_active_window(&mut self) {
+        let Some(explorer_handle) = self.active_explorer_handle() else {
+            dialogs::error("Delete Permanently", "No active ExplorerWindow");
+            return;
+        };
+
+        let Some(window) = self.window_mut(explorer_handle) else {
+            dialogs::error(
+                "Delete Permanently",
+                "Active ExplorerWindow handle is invalid",
+            );
+            return;
+        };
+
+        let confirmed = dialogs::proceed(
+            "Delete Permanently",
+            "Delete selected item permanently?\nThis action cannot be undone.",
+        );
+
+        if !confirmed {
+            return;
+        }
+
+        let source_dir = window.current_path().to_path_buf();
+
+        if let Err(err) = window.delete_selected_permanently() {
+            dialogs::error("Delete Permanently", &err.to_string());
+            return;
+        }
+
+        let handles: Vec<Handle<ExplorerWindow>> = self.explorer_windows.to_vec();
+
+        for handle in handles {
+            if let Some(window) = self.window_mut(handle) {
+                if window.current_path() == source_dir {
+                    window.refresh();
+                }
+            }
+        }
+    }
     fn paste_in_active_window(&mut self) {
         if self.deps.clipboard.is_empty() {
             dialogs::error("Paste", "Clipboard is empty at desktop level");
@@ -241,7 +322,8 @@ impl DesktopEvents for MyDesktop {
                     {'&Copy',cmd:FileCopy},
                     {'Mo&ve',cmd:FileMove},
                     {'&Paste',cmd:FilePaste},
-                    {'&Delete',cmd:FileDelete},
+                    {'Move to &Trash',cmd:FileMoveToTrash},
+                    {'Delete &Permanently',cmd:FileDeletePermanently},
                     {'New &Directory',cmd:FileNewDirectory},
                     {'&Properties',cmd:FileProperties}
                 ]
@@ -313,7 +395,7 @@ impl CommandBarEvents for MyDesktop {
         commandbar.set(key!("F5"), "Copy", mydesktop::Commands::FileCopy);
         commandbar.set(key!("F6"), "Move", mydesktop::Commands::FileMove);
         commandbar.set(key!("F7"), "Paste", mydesktop::Commands::FilePaste);
-        commandbar.set(key!("F8"), "Delete", mydesktop::Commands::FileDelete);
+        commandbar.set(key!("F8"), "Delete", mydesktop::Commands::FileMoveToTrash);
         commandbar.set(key!("F10"), "Quit", mydesktop::Commands::Quit);
     }
 

@@ -3,6 +3,7 @@ use fm_domain::{FileNode, NodeType};
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
+use trash;
 
 #[derive(Clone, Default)]
 pub struct StdFileSystem;
@@ -38,6 +39,23 @@ impl StdFileSystem {
 
     fn is_subpath(path: &Path, potential_parent: &Path) -> bool {
         path.starts_with(potential_parent)
+    }
+
+    fn delete_recursively(path: &Path) -> io::Result<()> {
+        let metadata = fs::symlink_metadata(path)?;
+
+        if metadata.is_dir() {
+            fs::remove_dir_all(path)?;
+        } else if metadata.is_file() || metadata.file_type().is_symlink() {
+            fs::remove_file(path)?;
+        } else {
+            return Err(io::Error::new(
+                io::ErrorKind::Unsupported,
+                format!("Unsupported filesystem entry type: {}", path.display()),
+            ));
+        }
+
+        Ok(())
     }
 }
 
@@ -260,5 +278,26 @@ impl FileSystemPort for StdFileSystem {
         fs::rename(source, &destination_path)?;
 
         Ok(destination_path)
+    }
+
+    fn move_to_trash(&self, path: &Path) -> io::Result<()> {
+        if !path.exists() {
+            return Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                format!("Path does not exist: {}", path.display()),
+            ));
+        }
+
+        trash::delete(path).map_err(|err| io::Error::new(io::ErrorKind::Other, err.to_string()))
+    }
+    fn delete_permanently(&self, path: &Path) -> io::Result<()> {
+        if !path.exists() {
+            return Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                format!("Path does not exist: {}", path.display()),
+            ));
+        }
+
+        Self::delete_recursively(path)
     }
 }

@@ -1,8 +1,8 @@
 use std::sync::{Arc, Mutex};
 
 use crate::{
-    ClipboardState, CopySelectionUseCase, FileSystemPort, MoveSelectionUseCase,
-    PasteEntriesUseCase, RenameEntryUseCase,
+    ClipboardState, CopySelectionUseCase, DeletePermanentlyUseCase, FileSystemPort,
+    MoveSelectionUseCase, MoveToTrashUseCase, PasteEntriesUseCase, RenameEntryUseCase,
 };
 
 #[derive(Clone)]
@@ -14,4 +14,6 @@ pub struct UiDependencies {
     pub move_selection: Arc<MoveSelectionUseCase>,
     pub paste_entries: Arc<PasteEntriesUseCase>,
     pub active_window_id: Arc<Mutex<Option<u32>>>,
+    pub move_to_trash: Arc<MoveToTrashUseCase>,
+    pub delete_permanently: Arc<DeletePermanentlyUseCase>,
 }

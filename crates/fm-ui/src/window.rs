@@ -305,6 +305,22 @@ impl ExplorerWindow {
         self.deps.move_selection.execute(&source_path)
     }
 
+    pub fn move_selected_to_trash(&self) -> io::Result<()> {
+        let source_path = self
+            .selected_item_path()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "No item selected"))?;
+
+        self.deps.move_to_trash.execute(&source_path)
+    }
+
+    pub fn delete_selected_permanently(&self) -> io::Result<()> {
+        let source_path = self
+            .selected_item_path()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "No item selected"))?;
+
+        self.deps.delete_permanently.execute(&source_path)
+    }
+
     fn paste_target_directory(&self) -> PathBuf {
         let Some(tv) = self.control(self.tree) else {
             return self.current_path.clone();

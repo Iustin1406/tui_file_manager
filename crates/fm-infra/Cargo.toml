@@ -6,3 +6,4 @@ edition = "2024"
 [dependencies]
 fm-application = { path = "../fm-application" }
 fm-domain = { path = "../fm-domain" }
+trash = "5"

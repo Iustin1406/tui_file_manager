@@ -10,4 +10,7 @@ pub trait FileSystemPort: Send + Sync {
     fn rename(&self, from: &Path, to: &Path) -> io::Result<()>;
     fn copy_entry(&self, source: &Path, destination_dir: &Path) -> io::Result<PathBuf>;
     fn move_entry(&self, source: &Path, destination_dir: &Path) -> io::Result<PathBuf>;
+
+    fn move_to_trash(&self, path: &Path) -> io::Result<()>;
+    fn delete_permanently(&self, path: &Path) -> io::Result<()>;
 }
