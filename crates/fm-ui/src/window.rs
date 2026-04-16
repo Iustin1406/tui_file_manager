@@ -338,6 +338,30 @@ impl ExplorerWindow {
         }
     }
 
+    fn create_directory_target(&self) -> PathBuf {
+        let Some(tv) = self.control(self.tree) else {
+            return self.current_path.clone();
+        };
+
+        let Some(current_item) = tv.current_item() else {
+            return self.current_path.clone();
+        };
+
+        let item = current_item.value();
+
+        match item.entry_type {
+            // if it's a directory or root, create the new directory inside it
+            FileSystemType::Directory | FileSystemType::Root => item.full_path.clone(),
+
+            // if it's a file, create the new directory alongside it (in its parent)
+            FileSystemType::File => item
+                .full_path
+                .parent()
+                .map(|p| p.to_path_buf())
+                .unwrap_or_else(|| self.current_path.clone()),
+        }
+    }
+
     pub fn paste_from_clipboard(&mut self) -> io::Result<()> {
         let destination_dir = self.paste_target_directory();
 
@@ -369,6 +393,15 @@ impl ExplorerWindow {
         let tv = self.control(self.tree)?;
         let current_item = tv.current_item()?;
         Some(current_item.value().name.clone())
+    }
+
+    pub fn create_directory(&mut self, name: &str) -> io::Result<()> {
+        let target_dir = self.create_directory_target();
+
+        self.deps.create_directory.execute(&target_dir, name)?;
+        self.refresh();
+
+        Ok(())
     }
 }
 

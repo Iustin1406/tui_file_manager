@@ -300,4 +300,32 @@ impl FileSystemPort for StdFileSystem {
 
         Self::delete_recursively(path)
     }
+    fn create_dir(&self, parent_dir: &Path, name: &str) -> io::Result<PathBuf> {
+        if !parent_dir.exists() {
+            return Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                format!("Parent directory does not exist: {}", parent_dir.display()),
+            ));
+        }
+
+        if !parent_dir.is_dir() {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                format!("Parent path is not a directory: {}", parent_dir.display()),
+            ));
+        }
+
+        let new_dir_path = parent_dir.join(name);
+
+        if new_dir_path.exists() {
+            return Err(io::Error::new(
+                io::ErrorKind::AlreadyExists,
+                format!("Directory already exists: {}", new_dir_path.display()),
+            ));
+        }
+
+        fs::create_dir(&new_dir_path)?;
+
+        Ok(new_dir_path)
+    }
 }

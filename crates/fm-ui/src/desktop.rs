@@ -126,7 +126,9 @@ impl MyDesktop {
             mydesktop::Commands::FileDeletePermanently => {
                 self.delete_permanently_in_active_window();
             }
-            mydesktop::Commands::FileNewDirectory => {}
+            mydesktop::Commands::FileNewDirectory => {
+                self.create_directory_in_active_window();
+            }
             mydesktop::Commands::FileProperties => {}
 
             mydesktop::Commands::ViewToggleHiddenFiles => {}
@@ -284,6 +286,36 @@ impl MyDesktop {
 
         self.refresh_all_windows();
     }
+
+    fn create_directory_in_active_window(&mut self) {
+        let Some(explorer_handle) = self.active_explorer_handle() else {
+            dialogs::error("New Directory", "No active ExplorerWindow");
+            return;
+        };
+
+        let Some(window) = self.window_mut(explorer_handle) else {
+            dialogs::error("New Directory", "Active ExplorerWindow handle is invalid");
+            return;
+        };
+
+        let result = dialogs::input::<String>(
+            "New Directory",
+            "Directory name:",
+            Some(String::new()),
+            Some(validate_new_directory_input),
+        );
+
+        let Some(directory_name) = result else {
+            return;
+        };
+
+        if let Err(err) = window.create_directory(&directory_name) {
+            dialogs::error("New Directory", &err.to_string());
+            return;
+        }
+
+        self.refresh_all_windows();
+    }
 }
 
 impl DesktopEvents for MyDesktop {
@@ -410,6 +442,29 @@ fn validate_rename_input(value: &String) -> Result<(), String> {
     #[cfg(windows)]
     if trimmed.contains('/') || trimmed.contains('\\') {
         return Err("New name must not contain path separators".to_string());
+    }
+
+    Ok(())
+}
+
+fn validate_new_directory_input(value: &String) -> Result<(), String> {
+    let trimmed = value.trim();
+
+    if trimmed.is_empty() {
+        return Err("Directory name cannot be empty".to_string());
+    }
+
+    if trimmed == "." || trimmed == ".." {
+        return Err("Directory name cannot be . or ..".to_string());
+    }
+
+    if trimmed.contains(std::path::MAIN_SEPARATOR) {
+        return Err("Directory name must be a single entry name, not a path".to_string());
+    }
+
+    #[cfg(windows)]
+    if trimmed.contains('/') || trimmed.contains('\\') {
+        return Err("Directory name must not contain path separators".to_string());
     }
 
     Ok(())
