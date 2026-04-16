@@ -83,6 +83,16 @@ impl MyDesktop {
         })
     }
 
+    fn refresh_all_windows(&mut self) {
+        let handles: Vec<Handle<ExplorerWindow>> = self.explorer_windows.to_vec();
+
+        for handle in handles {
+            if let Some(window) = self.window_mut(handle) {
+                window.refresh();
+            }
+        }
+    }
+
     fn handle_command(&mut self, command: mydesktop::Commands) {
         match command {
             mydesktop::Commands::WindowNew => {
@@ -176,28 +186,18 @@ impl MyDesktop {
             return;
         };
 
-        let confirmed = dialogs::proceed("Move to Trash", "Move selected item to Trash?");
+        let confirmed = dialogs::validate("Move to Trash", "Move selected item to Trash?");
 
         if !confirmed {
             return;
         }
-
-        let source_dir = window.current_path().to_path_buf();
 
         if let Err(err) = window.move_selected_to_trash() {
             dialogs::error("Move to Trash", &err.to_string());
             return;
         }
 
-        let handles: Vec<Handle<ExplorerWindow>> = self.explorer_windows.to_vec();
-
-        for handle in handles {
-            if let Some(window) = self.window_mut(handle) {
-                if window.current_path() == source_dir {
-                    window.refresh();
-                }
-            }
-        }
+        self.refresh_all_windows();
     }
 
     fn delete_permanently_in_active_window(&mut self) {
@@ -214,7 +214,7 @@ impl MyDesktop {
             return;
         };
 
-        let confirmed = dialogs::proceed(
+        let confirmed = dialogs::validate(
             "Delete Permanently",
             "Delete selected item permanently?\nThis action cannot be undone.",
         );
@@ -223,36 +223,18 @@ impl MyDesktop {
             return;
         }
 
-        let source_dir = window.current_path().to_path_buf();
-
         if let Err(err) = window.delete_selected_permanently() {
             dialogs::error("Delete Permanently", &err.to_string());
             return;
         }
 
-        let handles: Vec<Handle<ExplorerWindow>> = self.explorer_windows.to_vec();
-
-        for handle in handles {
-            if let Some(window) = self.window_mut(handle) {
-                if window.current_path() == source_dir {
-                    window.refresh();
-                }
-            }
-        }
+        self.refresh_all_windows();
     }
     fn paste_in_active_window(&mut self) {
         if self.deps.clipboard.is_empty() {
             dialogs::error("Paste", "Clipboard is empty at desktop level");
             return;
         }
-
-        let source_dirs: Vec<std::path::PathBuf> = self
-            .deps
-            .clipboard
-            .get_entries()
-            .into_iter()
-            .filter_map(|entry| entry.source_path.parent().map(|p| p.to_path_buf()))
-            .collect();
 
         let Some(explorer_handle) = self.active_explorer_handle() else {
             dialogs::error("Paste", "No active ExplorerWindow");
@@ -269,15 +251,7 @@ impl MyDesktop {
             return;
         }
 
-        let handles: Vec<Handle<ExplorerWindow>> = self.explorer_windows.to_vec();
-
-        for handle in handles {
-            if let Some(window) = self.window_mut(handle) {
-                if source_dirs.iter().any(|dir| window.current_path() == dir) {
-                    window.refresh();
-                }
-            }
-        }
+        self.refresh_all_windows();
     }
 
     fn rename_in_active_window(&mut self) {
@@ -305,7 +279,10 @@ impl MyDesktop {
 
         if let Err(err) = window.rename_selected_to(&new_name) {
             dialogs::error("Rename", &err.to_string());
+            return;
         }
+
+        self.refresh_all_windows();
     }
 }
 
