@@ -57,6 +57,37 @@ impl StdFileSystem {
 
         Ok(())
     }
+
+    fn calculate_entry_size(path: &Path) -> io::Result<u64> {
+        let metadata = fs::symlink_metadata(path)?;
+
+        if metadata.is_file() {
+            return Ok(metadata.len());
+        }
+
+        if metadata.is_dir() {
+            let mut total_size = 0u64;
+
+            for entry_result in fs::read_dir(path)? {
+                let entry = entry_result?;
+                let child_path = entry.path();
+
+                match Self::calculate_entry_size(&child_path) {
+                    Ok(child_size) => {
+                        total_size += child_size;
+                    }
+                    Err(_) => {
+                        // if we can't access the child entry, we skip it and continue with the rest
+                        continue;
+                    }
+                }
+            }
+
+            return Ok(total_size);
+        }
+
+        Ok(0)
+    }
 }
 
 impl FileSystemPort for StdFileSystem {
@@ -353,11 +384,7 @@ impl FileSystemPort for StdFileSystem {
             .filter(|n| !n.is_empty())
             .unwrap_or_else(|| path.to_string_lossy().to_string());
 
-        let size = if metadata.is_file() {
-            Some(metadata.len())
-        } else {
-            None
-        };
+        let size = Some(Self::calculate_entry_size(path)?);
 
         let modified = metadata.modified().ok();
 
