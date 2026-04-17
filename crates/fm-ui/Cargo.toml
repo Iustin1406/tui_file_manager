@@ -7,3 +7,4 @@ edition = "2024"
 appcui = { version = "0.4.6", features = ["CROSSTERM"] }
 fm-application = { path = "../fm-application" }
 fm-domain = { path = "../fm-domain" }
+chrono = "0.4"

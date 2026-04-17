@@ -2,8 +2,8 @@ use std::sync::{Arc, Mutex};
 
 use fm_application::{
     ClipboardState, CopySelectionUseCase, CreateDirectoryUseCase, DeletePermanentlyUseCase,
-    MoveSelectionUseCase, MoveToTrashUseCase, PasteEntriesUseCase, RenameEntryUseCase,
-    UiDependencies,
+    GetEntryPropertiesUseCase, MoveSelectionUseCase, MoveToTrashUseCase, PasteEntriesUseCase,
+    RenameEntryUseCase, UiDependencies,
 };
 use fm_infra::StdFileSystem;
 
@@ -18,6 +18,7 @@ fn main() -> Result<(), appcui::system::Error> {
     let delete_permanently = Arc::new(DeletePermanentlyUseCase::new(fs.clone()));
     let paste_entries = Arc::new(PasteEntriesUseCase::new(fs.clone(), clipboard.clone()));
     let create_directory = Arc::new(CreateDirectoryUseCase::new(fs.clone()));
+    let get_entry_properties = Arc::new(GetEntryPropertiesUseCase::new(fs.clone()));
 
     let deps = UiDependencies {
         fs,
@@ -30,6 +31,7 @@ fn main() -> Result<(), appcui::system::Error> {
         rename_entry,
         active_window_id: Arc::new(Mutex::new(None)),
         create_directory,
+        get_entry_properties,
     };
 
     fm_ui::run(deps)

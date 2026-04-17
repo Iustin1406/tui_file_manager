@@ -403,6 +403,14 @@ impl ExplorerWindow {
 
         Ok(())
     }
+
+    pub fn selected_item_properties(&self) -> io::Result<fm_domain::EntryProperties> {
+        let source_path = self
+            .selected_item_path()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "No item selected"))?;
+
+        self.deps.get_entry_properties.execute(&source_path)
+    }
 }
 
 impl WindowEvents for ExplorerWindow {

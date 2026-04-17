@@ -1,5 +1,5 @@
 use fm_application::FileSystemPort;
-use fm_domain::{FileNode, NodeType};
+use fm_domain::{EntryProperties, FileNode, NodeType};
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -327,5 +327,52 @@ impl FileSystemPort for StdFileSystem {
         fs::create_dir(&new_dir_path)?;
 
         Ok(new_dir_path)
+    }
+
+    fn get_entry_properties(&self, path: &Path) -> io::Result<EntryProperties> {
+        if !path.exists() {
+            return Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                format!("Path does not exist: {}", path.display()),
+            ));
+        }
+
+        let metadata = fs::symlink_metadata(path)?;
+
+        let node_type = if metadata.is_dir() {
+            NodeType::Directory
+        } else if metadata.is_file() {
+            NodeType::File
+        } else {
+            NodeType::Root
+        };
+
+        let name = path
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .filter(|n| !n.is_empty())
+            .unwrap_or_else(|| path.to_string_lossy().to_string());
+
+        let size = if metadata.is_file() {
+            Some(metadata.len())
+        } else {
+            None
+        };
+
+        let modified = metadata.modified().ok();
+
+        let is_hidden = path
+            .file_name()
+            .map(|n| n.to_string_lossy().starts_with('.'))
+            .unwrap_or(false);
+
+        Ok(EntryProperties {
+            name,
+            path: path.to_path_buf(),
+            node_type,
+            size,
+            modified,
+            is_hidden,
+        })
     }
 }

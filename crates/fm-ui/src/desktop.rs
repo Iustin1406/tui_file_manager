@@ -5,6 +5,9 @@ use fm_application::UiDependencies;
 
 use crate::window::ExplorerWindow;
 
+use chrono::{DateTime, Local};
+use std::time::SystemTime;
+
 #[Desktop(
     events = [MenuEvents, DesktopEvents, AppBarEvents, CommandBarEvents],
     commands = [
@@ -129,7 +132,9 @@ impl MyDesktop {
             mydesktop::Commands::FileNewDirectory => {
                 self.create_directory_in_active_window();
             }
-            mydesktop::Commands::FileProperties => {}
+            mydesktop::Commands::FileProperties => {
+                self.show_properties_in_active_window();
+            }
 
             mydesktop::Commands::ViewToggleHiddenFiles => {}
             mydesktop::Commands::ViewSortByName => {}
@@ -285,6 +290,49 @@ impl MyDesktop {
         }
 
         self.refresh_all_windows();
+    }
+
+    fn show_properties_in_active_window(&mut self) {
+        let Some(explorer_handle) = self.active_explorer_handle() else {
+            dialogs::error("Properties", "No active ExplorerWindow");
+            return;
+        };
+
+        let Some(window) = self.window_mut(explorer_handle) else {
+            dialogs::error("Properties", "Active ExplorerWindow handle is invalid");
+            return;
+        };
+
+        let properties = match window.selected_item_properties() {
+            Ok(props) => props,
+            Err(err) => {
+                dialogs::error("Properties", &err.to_string());
+                return;
+            }
+        };
+
+        let entry_type = match properties.node_type {
+            fm_domain::NodeType::File => "File",
+            fm_domain::NodeType::Directory => "Directory",
+            fm_domain::NodeType::Root => "Root",
+        };
+
+        let size_text = format_size(properties.size);
+        let modified_text = format_modified_time(properties.modified);
+
+        let hidden_text = if properties.is_hidden { "Yes" } else { "No" };
+
+        let message = format!(
+            "Name: {}\nPath: {}\nType: {}\nSize: {}\nModified: {}\nHidden: {}",
+            properties.name,
+            properties.path.display(),
+            entry_type,
+            size_text,
+            modified_text,
+            hidden_text,
+        );
+
+        dialogs::message("Properties", &message);
     }
 
     fn create_directory_in_active_window(&mut self) {
@@ -468,4 +516,40 @@ fn validate_new_directory_input(value: &String) -> Result<(), String> {
     }
 
     Ok(())
+}
+
+fn format_modified_time(value: Option<SystemTime>) -> String {
+    let Some(system_time) = value else {
+        return "N/A".to_string();
+    };
+
+    let datetime: DateTime<Local> = DateTime::<Local>::from(system_time);
+    datetime.format("%A, %-d %B %Y at %H:%M").to_string()
+}
+
+fn format_size(size: Option<u64>) -> String {
+    let Some(bytes) = size else {
+        return "N/A".to_string();
+    };
+
+    const KB: f64 = 1024.0;
+    const MB: f64 = KB * 1024.0;
+    const GB: f64 = MB * 1024.0;
+    const TB: f64 = GB * 1024.0;
+
+    let bytes_f = bytes as f64;
+
+    let readable_format = if bytes_f < KB {
+        format!("{} B", bytes)
+    } else if bytes_f < MB {
+        format!("{:.2} KB", bytes_f / KB)
+    } else if bytes_f < GB {
+        format!("{:.2} MB", bytes_f / MB)
+    } else if bytes_f < TB {
+        format!("{:.2} GB", bytes_f / GB)
+    } else {
+        format!("{:.2} TB", bytes_f / TB)
+    };
+
+    format!("{} ({} bytes)", readable_format, bytes)
 }
