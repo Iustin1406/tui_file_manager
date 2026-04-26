@@ -112,6 +112,9 @@ impl FileSystemPort for StdFileSystem {
                 name: "/".to_string(),
                 path: PathBuf::from("/"),
                 node_type: NodeType::Root,
+                size: None,
+                modified: None,
+                is_hidden: false,
             }]
         }
 
@@ -121,16 +124,20 @@ impl FileSystemPort for StdFileSystem {
                 name: "C:\\".to_string(),
                 path: PathBuf::from(r"C:\"),
                 node_type: NodeType::Root,
+                size: None,
+                modified: None,
+                is_hidden: false,
             }]
         }
     }
 
     fn list_dir(&self, path: &Path) -> Vec<FileNode> {
-        let mut items: Vec<FileNode> = match fs::read_dir(path) {
+        match fs::read_dir(path) {
             Ok(entries) => entries
                 .flatten()
                 .filter_map(|entry| {
                     let file_type = entry.file_type().ok()?;
+                    let metadata = entry.metadata().ok();
 
                     let node_type = if file_type.is_dir() {
                         NodeType::Directory
@@ -140,27 +147,28 @@ impl FileSystemPort for StdFileSystem {
                         return None;
                     };
 
+                    let name = entry.file_name().to_string_lossy().to_string();
+                    let size = if file_type.is_file() {
+                        metadata.as_ref().map(|m| m.len())
+                    } else {
+                        None
+                    };
+
+                    let modified = metadata.as_ref().and_then(|m| m.modified().ok());
+                    let is_hidden = name.starts_with('.');
+
                     Some(FileNode {
-                        name: entry.file_name().to_string_lossy().to_string(),
+                        name,
                         path: entry.path(),
                         node_type,
+                        size,
+                        modified,
+                        is_hidden,
                     })
                 })
                 .collect(),
             Err(_) => Vec::new(),
-        };
-
-        items.sort_by(|a, b| {
-            use std::cmp::Ordering;
-
-            match (a.node_type, b.node_type) {
-                (NodeType::Directory, NodeType::File) => Ordering::Less,
-                (NodeType::File, NodeType::Directory) => Ordering::Greater,
-                _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
-            }
-        });
-
-        items
+        }
     }
 
     fn exists(&self, path: &Path) -> bool {

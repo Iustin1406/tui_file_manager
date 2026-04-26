@@ -136,10 +136,18 @@ impl MyDesktop {
                 self.show_properties_in_active_window();
             }
 
-            mydesktop::Commands::ViewToggleHiddenFiles => {}
-            mydesktop::Commands::ViewSortByName => {}
-            mydesktop::Commands::ViewSortBySize => {}
-            mydesktop::Commands::ViewSortByDate => {}
+            mydesktop::Commands::ViewToggleHiddenFiles => {
+                self.toggle_hidden_files_in_active_window();
+            }
+            mydesktop::Commands::ViewSortByName => {
+                self.set_sort_mode_in_active_window(fm_domain::SortMode::Name);
+            }
+            mydesktop::Commands::ViewSortBySize => {
+                self.set_sort_mode_in_active_window(fm_domain::SortMode::Size);
+            }
+            mydesktop::Commands::ViewSortByDate => {
+                self.set_sort_mode_in_active_window(fm_domain::SortMode::Date);
+            }
 
             mydesktop::Commands::HelpKeybindings => {}
             mydesktop::Commands::HelpAbout => {}
@@ -364,6 +372,34 @@ impl MyDesktop {
 
         self.refresh_all_windows();
     }
+
+    fn set_sort_mode_in_active_window(&mut self, sort_mode: fm_domain::SortMode) {
+        let Some(explorer_handle) = self.active_explorer_handle() else {
+            dialogs::error("Sort", "No active ExplorerWindow");
+            return;
+        };
+
+        let Some(window) = self.window_mut(explorer_handle) else {
+            dialogs::error("Sort", "Active ExplorerWindow handle is invalid");
+            return;
+        };
+
+        window.set_sort_mode(sort_mode);
+    }
+
+    fn toggle_hidden_files_in_active_window(&mut self) {
+        let Some(explorer_handle) = self.active_explorer_handle() else {
+            dialogs::error("Hidden Files", "No active ExplorerWindow");
+            return;
+        };
+
+        let Some(window) = self.window_mut(explorer_handle) else {
+            dialogs::error("Hidden Files", "Active ExplorerWindow handle is invalid");
+            return;
+        };
+
+        window.toggle_hidden_files();
+    }
 }
 
 impl DesktopEvents for MyDesktop {
@@ -535,7 +571,6 @@ fn format_size(size: Option<u64>) -> String {
     const KB: f64 = 1024.0;
     const MB: f64 = KB * 1024.0;
     const GB: f64 = MB * 1024.0;
-    const TB: f64 = GB * 1024.0;
 
     let bytes_f = bytes as f64;
 
@@ -545,10 +580,8 @@ fn format_size(size: Option<u64>) -> String {
         format!("{:.2} KB", bytes_f / KB)
     } else if bytes_f < GB {
         format!("{:.2} MB", bytes_f / MB)
-    } else if bytes_f < TB {
-        format!("{:.2} GB", bytes_f / GB)
     } else {
-        format!("{:.2} TB", bytes_f / TB)
+        format!("{:.2} GB", bytes_f / GB)
     };
 
     format!("{} ({} bytes)", readable_format, bytes)

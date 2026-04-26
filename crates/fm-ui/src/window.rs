@@ -3,7 +3,7 @@ use std::{io, path::PathBuf};
 use appcui::prelude::*;
 use appcui::ui::pathfinder::{Flags as PathFinderFlags, PathFinder};
 use fm_application::UiDependencies;
-use fm_domain::{FileNode, NodeType};
+use fm_domain::{FileNode, NodeType, SortMode};
 
 #[derive(Clone, Copy, Eq, PartialEq)]
 enum FileSystemType {
@@ -50,6 +50,8 @@ pub struct ExplorerWindow {
     forward_button: Handle<Button>,
     path_history: Vec<PathBuf>,
     history_index: usize,
+    sort_mode: SortMode,
+    show_hidden: bool,
 }
 
 impl ExplorerWindow {
@@ -79,6 +81,8 @@ impl ExplorerWindow {
             forward_button: Handle::None,
             path_history: vec![path.clone()],
             history_index: 0,
+            sort_mode: SortMode::Name,
+            show_hidden: false,
         };
 
         w.back_button = w.add(Button::with_type(
@@ -147,7 +151,14 @@ impl ExplorerWindow {
         path: &PathBuf,
         parent: Handle<treeview::Item<FileSystemItem>>,
     ) {
-        let nodes = self.deps.fs.list_dir(path);
+        let mut nodes = self.deps.fs.list_dir(path);
+
+        if !self.show_hidden {
+            nodes.retain(|node| !node.is_hidden);
+        }
+
+        self.sort_nodes(&mut nodes);
+
         let items: Vec<FileSystemItem> = nodes.into_iter().map(FileSystemItem::from).collect();
 
         let h = self.tree;
@@ -410,6 +421,51 @@ impl ExplorerWindow {
             .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "No item selected"))?;
 
         self.deps.get_entry_properties.execute(&source_path)
+    }
+
+    pub fn set_sort_mode(&mut self, sort_mode: SortMode) {
+        self.sort_mode = sort_mode;
+        self.refresh();
+    }
+
+    pub fn toggle_hidden_files(&mut self) {
+        self.show_hidden = !self.show_hidden;
+        self.refresh();
+    }
+
+    fn sort_nodes(&self, nodes: &mut Vec<FileNode>) {
+        use std::cmp::Ordering;
+        use std::time::UNIX_EPOCH;
+
+        nodes.sort_by(|a, b| {
+            match (a.node_type, b.node_type) {
+                (NodeType::Directory, NodeType::File) => return Ordering::Less,
+                (NodeType::File, NodeType::Directory) => return Ordering::Greater,
+                _ => {}
+            }
+
+            match self.sort_mode {
+                SortMode::Name => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
+
+                SortMode::Size => {
+                    let a_size = a.size.unwrap_or(0);
+                    let b_size = b.size.unwrap_or(0);
+
+                    b_size
+                        .cmp(&a_size)
+                        .then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
+                }
+
+                SortMode::Date => {
+                    let a_modified = a.modified.unwrap_or(UNIX_EPOCH);
+                    let b_modified = b.modified.unwrap_or(UNIX_EPOCH);
+
+                    b_modified
+                        .cmp(&a_modified)
+                        .then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
+                }
+            }
+        });
     }
 }
 
