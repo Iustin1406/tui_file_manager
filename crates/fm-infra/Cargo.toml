@@ -7,3 +7,4 @@ edition = "2024"
 fm-application = { path = "../fm-application" }
 fm-domain = { path = "../fm-domain" }
 trash = "5"
+open = "5"

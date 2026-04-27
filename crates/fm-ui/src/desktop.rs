@@ -109,7 +109,9 @@ impl MyDesktop {
                 self.arrange_windows(desktop::ArrangeWindowsMethod::Grid);
             }
 
-            mydesktop::Commands::FileOpen => {}
+            mydesktop::Commands::FileOpen => {
+                self.open_in_active_window();
+            }
             mydesktop::Commands::FilePreview => {}
             mydesktop::Commands::FileRename => {
                 self.rename_in_active_window();
@@ -171,6 +173,22 @@ impl MyDesktop {
 
         if let Err(err) = window.copy_selected() {
             dialogs::error("Copy", &err.to_string());
+        }
+    }
+
+    fn open_in_active_window(&mut self) {
+        let Some(explorer_handle) = self.active_explorer_handle() else {
+            dialogs::error("Open", "No active ExplorerWindow");
+            return;
+        };
+
+        let Some(window) = self.window_mut(explorer_handle) else {
+            dialogs::error("Open", "Active ExplorerWindow handle is invalid");
+            return;
+        };
+
+        if let Err(err) = window.open_selected() {
+            dialogs::error("Open", &err.to_string());
         }
     }
 

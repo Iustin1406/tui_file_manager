@@ -16,4 +16,6 @@ pub trait FileSystemPort: Send + Sync {
 
     fn create_dir(&self, parent_dir: &Path, name: &str) -> io::Result<PathBuf>;
     fn get_entry_properties(&self, path: &Path) -> io::Result<EntryProperties>;
+
+    fn open_file(&self, path: &Path) -> io::Result<()>;
 }

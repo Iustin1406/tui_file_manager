@@ -467,6 +467,32 @@ impl ExplorerWindow {
             }
         });
     }
+
+    pub fn open_selected(&mut self) -> io::Result<()> {
+        let Some(tv) = self.control(self.tree) else {
+            return Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                "TreeView is not available",
+            ));
+        };
+
+        let Some(current_item) = tv.current_item() else {
+            return Err(io::Error::new(io::ErrorKind::NotFound, "No item selected"));
+        };
+
+        let item = current_item.value();
+        let selected_path = item.full_path.clone();
+        let selected_type = item.entry_type;
+
+        match selected_type {
+            FileSystemType::Directory | FileSystemType::Root => {
+                self.navigate_to_path_with_history(selected_path);
+                Ok(())
+            }
+
+            FileSystemType::File => self.deps.open_entry.execute(&selected_path),
+        }
+    }
 }
 
 impl WindowEvents for ExplorerWindow {

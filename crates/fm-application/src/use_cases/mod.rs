@@ -4,5 +4,6 @@ pub mod delete_permanently;
 pub mod get_entry_properties;
 pub mod move_selection;
 pub mod move_to_trash;
+pub mod open_entry;
 pub mod paste_entries;
 pub mod rename_entry;

@@ -410,4 +410,22 @@ impl FileSystemPort for StdFileSystem {
             is_hidden,
         })
     }
+
+    fn open_file(&self, path: &Path) -> io::Result<()> {
+        if !path.exists() {
+            return Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                format!("Path does not exist: {}", path.display()),
+            ));
+        }
+
+        if !path.is_file() {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                format!("Path is not a file: {}", path.display()),
+            ));
+        }
+
+        open::that(path).map_err(|err| io::Error::new(io::ErrorKind::Other, err.to_string()))
+    }
 }
