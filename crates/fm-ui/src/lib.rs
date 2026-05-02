@@ -2,6 +2,7 @@ use appcui::prelude::*;
 use fm_application::UiDependencies;
 
 pub mod desktop;
+pub mod preview_window;
 pub mod window;
 
 use desktop::MyDesktop;

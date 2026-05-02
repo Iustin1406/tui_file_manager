@@ -14,4 +14,5 @@ pub use use_cases::move_selection::MoveSelectionUseCase;
 pub use use_cases::move_to_trash::MoveToTrashUseCase;
 pub use use_cases::open_entry::OpenEntryUseCase;
 pub use use_cases::paste_entries::PasteEntriesUseCase;
+pub use use_cases::preview_entry::PreviewEntryUseCase;
 pub use use_cases::rename_entry::RenameEntryUseCase;

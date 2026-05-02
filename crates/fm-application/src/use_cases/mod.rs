@@ -6,4 +6,5 @@ pub mod move_selection;
 pub mod move_to_trash;
 pub mod open_entry;
 pub mod paste_entries;
+pub mod preview_entry;
 pub mod rename_entry;

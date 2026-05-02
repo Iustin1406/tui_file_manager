@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 use fm_application::{
     ClipboardState, CopySelectionUseCase, CreateDirectoryUseCase, DeletePermanentlyUseCase,
     GetEntryPropertiesUseCase, MoveSelectionUseCase, MoveToTrashUseCase, OpenEntryUseCase,
-    PasteEntriesUseCase, RenameEntryUseCase, UiDependencies,
+    PasteEntriesUseCase, PreviewEntryUseCase, RenameEntryUseCase, UiDependencies,
 };
 use fm_infra::StdFileSystem;
 
@@ -20,6 +20,7 @@ fn main() -> Result<(), appcui::system::Error> {
     let create_directory = Arc::new(CreateDirectoryUseCase::new(fs.clone()));
     let get_entry_properties = Arc::new(GetEntryPropertiesUseCase::new(fs.clone()));
     let open_entry = Arc::new(OpenEntryUseCase::new(fs.clone()));
+    let preview_entry = Arc::new(PreviewEntryUseCase::new(fs.clone()));
     let deps = UiDependencies {
         fs,
         clipboard,
@@ -33,6 +34,7 @@ fn main() -> Result<(), appcui::system::Error> {
         create_directory,
         get_entry_properties,
         open_entry,
+        preview_entry,
     };
 
     fm_ui::run(deps)

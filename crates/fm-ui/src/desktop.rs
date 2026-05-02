@@ -5,6 +5,9 @@ use fm_application::UiDependencies;
 
 use crate::window::ExplorerWindow;
 
+use crate::preview_window::PreviewWindow;
+use fm_domain::PreviewContent;
+
 use chrono::{DateTime, Local};
 use std::time::SystemTime;
 
@@ -112,7 +115,9 @@ impl MyDesktop {
             mydesktop::Commands::FileOpen => {
                 self.open_in_active_window();
             }
-            mydesktop::Commands::FilePreview => {}
+            mydesktop::Commands::FilePreview => {
+                self.preview_in_active_window();
+            }
             mydesktop::Commands::FileRename => {
                 self.rename_in_active_window();
             }
@@ -417,6 +422,44 @@ impl MyDesktop {
         };
 
         window.toggle_hidden_files();
+    }
+
+    fn preview_in_active_window(&mut self) {
+        let Some(explorer_handle) = self.active_explorer_handle() else {
+            dialogs::error("Preview", "No active ExplorerWindow");
+            return;
+        };
+
+        let Some(window) = self.window_mut(explorer_handle) else {
+            dialogs::error("Preview", "Active ExplorerWindow handle is invalid");
+            return;
+        };
+
+        let preview = match window.preview_selected() {
+            Ok(preview) => preview,
+            Err(err) => {
+                dialogs::error("Preview", &err.to_string());
+                return;
+            }
+        };
+
+        match preview {
+            PreviewContent::Text {
+                title,
+                content,
+                truncated,
+            } => {
+                self.add_window(PreviewWindow::new(&title, &content, truncated));
+            }
+
+            PreviewContent::Image { title, preview } => {
+                self.add_window(PreviewWindow::new_image(&title, &preview));
+            }
+
+            PreviewContent::Unsupported { reason } => {
+                dialogs::error("Preview", &reason);
+            }
+        }
     }
 }
 

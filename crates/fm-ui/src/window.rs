@@ -493,6 +493,14 @@ impl ExplorerWindow {
             FileSystemType::File => self.deps.open_entry.execute(&selected_path),
         }
     }
+
+    pub fn preview_selected(&self) -> io::Result<fm_domain::PreviewContent> {
+        let source_path = self
+            .selected_item_path()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "No item selected"))?;
+
+        self.deps.preview_entry.execute(&source_path)
+    }
 }
 
 impl WindowEvents for ExplorerWindow {

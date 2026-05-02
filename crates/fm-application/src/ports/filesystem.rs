@@ -1,4 +1,4 @@
-use fm_domain::{EntryProperties, FileNode};
+use fm_domain::{EntryProperties, FileNode, PreviewContent};
 use std::io;
 use std::path::{Path, PathBuf};
 
@@ -18,4 +18,11 @@ pub trait FileSystemPort: Send + Sync {
     fn get_entry_properties(&self, path: &Path) -> io::Result<EntryProperties>;
 
     fn open_file(&self, path: &Path) -> io::Result<()>;
+    fn preview_entry(
+        &self,
+        path: &Path,
+        max_text_bytes: usize,
+        max_image_width: u32,
+        max_image_height: u32,
+    ) -> io::Result<PreviewContent>;
 }

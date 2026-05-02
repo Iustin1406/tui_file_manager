@@ -1,7 +1,11 @@
 use fm_application::FileSystemPort;
-use fm_domain::{EntryProperties, FileNode, NodeType};
+use fm_domain::{
+    EntryProperties, FileNode, ImagePreview, ImagePreviewCell, NodeType, PreviewContent,
+};
+use image::GenericImageView;
 use std::fs;
 use std::io;
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use trash;
 
@@ -87,6 +91,146 @@ impl StdFileSystem {
         }
 
         Ok(0)
+    }
+
+    fn reduce_color(value: u8) -> u8 {
+        (value / 32) * 32
+    }
+
+    fn try_build_image_preview(
+        path: &Path,
+        max_width: u32,
+        max_height: u32,
+    ) -> io::Result<Option<PreviewContent>> {
+        let image = match image::open(path) {
+            Ok(image) => image,
+            Err(_) => return Ok(None),
+        };
+
+        let image = image.adjust_contrast(25.0).brighten(5);
+
+        let title = path
+            .file_name()
+            .map(|name| name.to_string_lossy().to_string())
+            .unwrap_or_else(|| path.to_string_lossy().to_string());
+
+        let preview = Self::build_image_preview(image, max_width, max_height)?;
+
+        Ok(Some(PreviewContent::Image { title, preview }))
+    }
+
+    fn build_image_preview(
+        image: image::DynamicImage,
+        max_width: u32,
+        max_height: u32,
+    ) -> io::Result<ImagePreview> {
+        let (original_width, original_height) = image.dimensions();
+
+        if original_width == 0 || original_height == 0 {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "Image has invalid dimensions",
+            ));
+        }
+
+        let (resized_width, resized_pixel_height) = Self::calculate_preview_pixel_dimensions(
+            original_width,
+            original_height,
+            max_width,
+            max_height,
+        );
+
+        let resized = image.resize_exact(
+            resized_width,
+            resized_pixel_height,
+            image::imageops::FilterType::Lanczos3,
+        );
+
+        let rgba = resized.to_rgba8();
+
+        let preview_width = resized_width;
+        let preview_height = resized_pixel_height.div_ceil(2);
+
+        let mut cells = Vec::with_capacity((preview_width * preview_height) as usize);
+
+        for cell_y in 0..preview_height {
+            let top_y = cell_y * 2;
+            let bottom_y = top_y + 1;
+
+            for x in 0..preview_width {
+                let top = rgba.get_pixel(x, top_y);
+                let [top_r, top_g, top_b, top_a] = top.0;
+
+                let (foreground_red, foreground_green, foreground_blue) = if top_a == 0 {
+                    (0, 0, 0)
+                } else {
+                    (
+                        Self::reduce_color(top_r),
+                        Self::reduce_color(top_g),
+                        Self::reduce_color(top_b),
+                    )
+                };
+
+                let (background_red, background_green, background_blue) =
+                    if bottom_y < resized_pixel_height {
+                        let bottom = rgba.get_pixel(x, bottom_y);
+                        let [bottom_r, bottom_g, bottom_b, bottom_a] = bottom.0;
+
+                        if bottom_a == 0 {
+                            (0, 0, 0)
+                        } else {
+                            (
+                                Self::reduce_color(bottom_r),
+                                Self::reduce_color(bottom_g),
+                                Self::reduce_color(bottom_b),
+                            )
+                        }
+                    } else {
+                        (0, 0, 0)
+                    };
+
+                cells.push(ImagePreviewCell {
+                    character: '▀',
+
+                    foreground_red,
+                    foreground_green,
+                    foreground_blue,
+
+                    background_red,
+                    background_green,
+                    background_blue,
+                });
+            }
+        }
+
+        Ok(ImagePreview {
+            width: preview_width,
+            height: preview_height,
+            cells,
+        })
+    }
+
+    fn calculate_preview_pixel_dimensions(
+        original_width: u32,
+        original_height: u32,
+        max_cell_width: u32,
+        max_cell_height: u32,
+    ) -> (u32, u32) {
+        let max_cell_width = max_cell_width.max(1);
+        let max_cell_height = max_cell_height.max(1);
+
+        let max_pixel_width = max_cell_width;
+        let max_pixel_height = max_cell_height * 2;
+
+        let width_scale = max_pixel_width as f64 / original_width as f64;
+        let height_scale = max_pixel_height as f64 / original_height as f64;
+
+        let scale = width_scale.min(height_scale).min(1.0);
+
+        let resized_width = ((original_width as f64 * scale).round() as u32).max(1);
+        let resized_height = ((original_height as f64 * scale).round() as u32).max(1);
+
+        (resized_width, resized_height)
     }
 }
 
@@ -427,5 +571,60 @@ impl FileSystemPort for StdFileSystem {
         }
 
         open::that(path).map_err(|err| io::Error::new(io::ErrorKind::Other, err.to_string()))
+    }
+
+    fn preview_entry(
+        &self,
+        path: &Path,
+        max_text_bytes: usize,
+        max_image_width: u32,
+        max_image_height: u32,
+    ) -> io::Result<PreviewContent> {
+        if !path.exists() {
+            return Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                format!("Path does not exist: {}", path.display()),
+            ));
+        }
+
+        if !path.is_file() {
+            return Ok(PreviewContent::Unsupported {
+                reason: "Preview is only available for files".to_string(),
+            });
+        }
+
+        if let Some(image_preview) =
+            Self::try_build_image_preview(path, max_image_width, max_image_height)?
+        {
+            return Ok(image_preview);
+        }
+
+        let mut file = fs::File::open(path)?;
+        let metadata = file.metadata()?;
+        let truncated = metadata.len() > max_text_bytes as u64;
+
+        let mut buffer = vec![0u8; max_text_bytes];
+        let bytes_read = file.read(&mut buffer)?;
+        buffer.truncate(bytes_read);
+
+        let content = match String::from_utf8(buffer) {
+            Ok(text) => text.replace("\r\n", "\n").replace('\t', "    "),
+            Err(_) => {
+                return Ok(PreviewContent::Unsupported {
+                    reason: "Preview is supported only for text files and images".to_string(),
+                });
+            }
+        };
+
+        let title = path
+            .file_name()
+            .map(|name| name.to_string_lossy().to_string())
+            .unwrap_or_else(|| path.to_string_lossy().to_string());
+
+        Ok(PreviewContent::Text {
+            title,
+            content,
+            truncated,
+        })
     }
 }
