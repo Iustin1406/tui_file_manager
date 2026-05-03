@@ -3,6 +3,7 @@ use appcui::prelude::*;
 use appcui::ui::appbar::*;
 use fm_application::UiDependencies;
 
+use crate::drive_window::DriveWindow;
 use crate::window::ExplorerWindow;
 
 use crate::preview_window::PreviewWindow;
@@ -33,7 +34,8 @@ use std::time::SystemTime;
         ViewSortByDate,
         HelpKeybindings,
         HelpAbout,
-        Quit
+        Quit,
+        DriveOpen,
     ]
 )]
 pub struct MyDesktop {
@@ -154,6 +156,10 @@ impl MyDesktop {
             }
             mydesktop::Commands::ViewSortByDate => {
                 self.set_sort_mode_in_active_window(fm_domain::SortMode::Date);
+            }
+
+            mydesktop::Commands::DriveOpen => {
+                self.open_drive_window();
             }
 
             mydesktop::Commands::HelpKeybindings => {}
@@ -461,6 +467,11 @@ impl MyDesktop {
             }
         }
     }
+
+    fn open_drive_window(&mut self) {
+        let deps = self.deps.clone();
+        self.add_window(DriveWindow::new(deps));
+    }
 }
 
 impl DesktopEvents for MyDesktop {
@@ -471,6 +482,7 @@ impl DesktopEvents for MyDesktop {
                 "
                 class:MyDesktop,items:[
                     {'&Open',cmd:FileOpen},
+                    {'Open &Google Drive',cmd:DriveOpen},
                     {'&Preview',cmd:FilePreview},
                     {'&Rename',cmd:FileRename},
                     {'&Copy',cmd:FileCopy},

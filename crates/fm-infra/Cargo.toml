@@ -9,3 +9,5 @@ fm-domain = { path = "../fm-domain" }
 trash = "5"
 open = "5"
 image = "0.25"
+google-drive3 = "6"
+tokio = { version = "1", features = ["rt-multi-thread"] }

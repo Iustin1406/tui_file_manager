@@ -1,1 +1,6 @@
 /target
+
+# Google API credentials
+config/client_secret.json
+config/token.json
+.env

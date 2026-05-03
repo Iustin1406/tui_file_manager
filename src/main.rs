@@ -2,14 +2,21 @@ use std::sync::{Arc, Mutex};
 
 use fm_application::{
     ClipboardState, CopySelectionUseCase, CreateDirectoryUseCase, DeletePermanentlyUseCase,
-    GetEntryPropertiesUseCase, MoveSelectionUseCase, MoveToTrashUseCase, OpenEntryUseCase,
-    PasteEntriesUseCase, PreviewEntryUseCase, RenameEntryUseCase, UiDependencies,
+    GetEntryPropertiesUseCase, ListDriveFolderUseCase, MoveSelectionUseCase, MoveToTrashUseCase,
+    OpenEntryUseCase, PasteEntriesUseCase, PreviewEntryUseCase, RenameEntryUseCase, UiDependencies,
 };
-use fm_infra::StdFileSystem;
+use fm_infra::{GoogleDriveAdapter, StdFileSystem};
 
 fn main() -> Result<(), appcui::system::Error> {
     let fs = Arc::new(StdFileSystem);
     let clipboard = Arc::new(ClipboardState::new());
+
+    let project_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+
+    let drive = Arc::new(GoogleDriveAdapter::new(
+        project_root.join("config/client_secret.json"),
+        project_root.join("config/token.json"),
+    ));
 
     let rename_entry = Arc::new(RenameEntryUseCase::new(fs.clone()));
     let copy_selection = Arc::new(CopySelectionUseCase::new(clipboard.clone()));
@@ -21,6 +28,8 @@ fn main() -> Result<(), appcui::system::Error> {
     let get_entry_properties = Arc::new(GetEntryPropertiesUseCase::new(fs.clone()));
     let open_entry = Arc::new(OpenEntryUseCase::new(fs.clone()));
     let preview_entry = Arc::new(PreviewEntryUseCase::new(fs.clone()));
+    let list_drive_folder = Arc::new(ListDriveFolderUseCase::new(drive));
+
     let deps = UiDependencies {
         fs,
         clipboard,
@@ -35,6 +44,7 @@ fn main() -> Result<(), appcui::system::Error> {
         get_entry_properties,
         open_entry,
         preview_entry,
+        list_drive_folder,
     };
 
     fm_ui::run(deps)
