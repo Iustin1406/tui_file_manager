@@ -1,5 +1,7 @@
+use std::collections::HashMap;
 use std::io;
 use std::path::PathBuf;
+use std::sync::Mutex;
 
 use fm_application::DrivePort;
 use fm_domain::DriveEntry;
@@ -16,6 +18,7 @@ const DRIVE_FOLDER_MIME_TYPE: &str = "application/vnd.google-apps.folder";
 pub struct GoogleDriveAdapter {
     credentials_path: PathBuf,
     token_path: PathBuf,
+    folder_cache: Mutex<HashMap<String, Vec<DriveEntry>>>,
 }
 
 impl GoogleDriveAdapter {
@@ -23,6 +26,7 @@ impl GoogleDriveAdapter {
         Self {
             credentials_path: credentials_path.into(),
             token_path: token_path.into(),
+            folder_cache: Mutex::new(HashMap::new()),
         }
     }
 
@@ -88,13 +92,63 @@ impl GoogleDriveAdapter {
         // map API model -> domain model
         Ok(files.into_iter().filter_map(file_to_drive_entry).collect())
     }
+
+    fn get_cached_folder(&self, folder_id: &str) -> io::Result<Option<Vec<DriveEntry>>> {
+        let cache = self
+            .folder_cache
+            .lock()
+            .map_err(|_| io::Error::new(io::ErrorKind::Other, "Drive cache lock poisoned"))?;
+
+        Ok(cache.get(folder_id).cloned())
+    }
+
+    fn store_cached_folder(&self, folder_id: &str, entries: Vec<DriveEntry>) -> io::Result<()> {
+        let mut cache = self
+            .folder_cache
+            .lock()
+            .map_err(|_| io::Error::new(io::ErrorKind::Other, "Drive cache lock poisoned"))?;
+
+        cache.insert(folder_id.to_string(), entries);
+
+        Ok(())
+    }
+
+    fn remove_cached_folder(&self, folder_id: &str) -> io::Result<()> {
+        let mut cache = self
+            .folder_cache
+            .lock()
+            .map_err(|_| io::Error::new(io::ErrorKind::Other, "Drive cache lock poisoned"))?;
+
+        cache.remove(folder_id);
+
+        Ok(())
+    }
 }
 
 impl DrivePort for GoogleDriveAdapter {
     // sync wrapper required by application layer
     fn list_folder(&self, folder_id: &str) -> io::Result<Vec<DriveEntry>> {
+        if let Some(entries) = self.get_cached_folder(folder_id)? {
+            return Ok(entries);
+        }
+
         let runtime = tokio::runtime::Runtime::new()?;
-        runtime.block_on(self.list_folder_async(folder_id))
+        let entries = runtime.block_on(self.list_folder_async(folder_id))?;
+
+        self.store_cached_folder(folder_id, entries.clone())?;
+
+        Ok(entries)
+    }
+
+    fn refresh_folder(&self, folder_id: &str) -> io::Result<Vec<DriveEntry>> {
+        self.remove_cached_folder(folder_id)?;
+
+        let runtime = tokio::runtime::Runtime::new()?;
+        let entries = runtime.block_on(self.list_folder_async(folder_id))?;
+
+        self.store_cached_folder(folder_id, entries.clone())?;
+
+        Ok(entries)
     }
 }
 

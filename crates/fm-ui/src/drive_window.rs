@@ -40,6 +40,7 @@ pub struct DriveWindow {
 
     back_button: Handle<Button>,
     forward_button: Handle<Button>,
+    refresh_button: Handle<Button>,
     location_label: Handle<Label>,
     tree: Handle<TreeView<DriveItem>>,
 
@@ -66,6 +67,7 @@ impl DriveWindow {
 
             back_button: Handle::None,
             forward_button: Handle::None,
+            refresh_button: Handle::None,
             location_label: Handle::None,
             tree: Handle::None,
 
@@ -89,8 +91,14 @@ impl DriveWindow {
             button::Type::Flat,
         ));
 
+        window.refresh_button = window.add(Button::with_type(
+            "Refresh",
+            layout!("l:8,t:0,w:9"),
+            button::Type::Flat,
+        ));
+
         window.location_label =
-            window.add(Label::new("Drive: Google Drive", layout!("l:8,t:0,r:1")));
+            window.add(Label::new("Drive: Google Drive", layout!("l:18,t:0,r:1")));
 
         let tree = TreeView::with_capacity(
             256,
@@ -200,14 +208,6 @@ impl DriveWindow {
         Some((value.id.clone(), value.name.clone(), value.item_type))
     }
 
-    fn selected_item(&self) -> Option<(String, String, DriveItemType)> {
-        let tree = self.control(self.tree)?;
-        let current_item = tree.current_item()?;
-        let value = current_item.value();
-
-        Some((value.id.clone(), value.name.clone(), value.item_type))
-    }
-
     fn populate_children(&mut self, folder_id: &str, parent: Handle<treeview::Item<DriveItem>>) {
         let Some(items) = self.list_folder_items(folder_id) else {
             return;
@@ -279,6 +279,19 @@ impl DriveWindow {
             self.refresh();
         }
     }
+
+    fn refresh_current_folder_from_api(&mut self) {
+        if let Err(err) = self
+            .deps
+            .refresh_drive_folder
+            .execute(&self.current_folder_id)
+        {
+            dialogs::error("Google Drive Refresh", &err.to_string());
+            return;
+        }
+
+        self.refresh();
+    }
 }
 
 impl WindowEvents for DriveWindow {
@@ -347,6 +360,11 @@ impl ButtonEvents for DriveWindow {
 
         if handle == self.forward_button {
             self.go_forward();
+            return EventProcessStatus::Processed;
+        }
+
+        if handle == self.refresh_button {
+            self.refresh_current_folder_from_api();
             return EventProcessStatus::Processed;
         }
 

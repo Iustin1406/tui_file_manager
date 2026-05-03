@@ -4,7 +4,7 @@ use crate::{
     ClipboardState, CopySelectionUseCase, CreateDirectoryUseCase, DeletePermanentlyUseCase,
     FileSystemPort, GetEntryPropertiesUseCase, ListDriveFolderUseCase, MoveSelectionUseCase,
     MoveToTrashUseCase, OpenEntryUseCase, PasteEntriesUseCase, PreviewEntryUseCase,
-    RenameEntryUseCase,
+    RefreshDriveFolderUseCase, RenameEntryUseCase,
 };
 
 #[derive(Clone)]
@@ -24,4 +24,5 @@ pub struct UiDependencies {
     pub preview_entry: Arc<PreviewEntryUseCase>,
 
     pub list_drive_folder: Arc<ListDriveFolderUseCase>,
+    pub refresh_drive_folder: Arc<RefreshDriveFolderUseCase>,
 }

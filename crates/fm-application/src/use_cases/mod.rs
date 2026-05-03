@@ -10,3 +10,4 @@ pub mod preview_entry;
 pub mod rename_entry;
 
 pub mod list_drive_folder;
+pub mod refresh_drive_folder;
