@@ -42,7 +42,7 @@ fn main() -> Result<(), appcui::system::Error> {
         delete_permanently,
         paste_entries,
         rename_entry,
-        active_window_id: Arc::new(Mutex::new(None)),
+        active_window: Arc::new(Mutex::new(None)),
         create_directory,
         get_entry_properties,
         open_entry,

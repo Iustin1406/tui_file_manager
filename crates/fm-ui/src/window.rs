@@ -2,6 +2,7 @@ use std::{io, path::PathBuf};
 
 use appcui::prelude::*;
 use appcui::ui::pathfinder::{Flags as PathFinderFlags, PathFinder};
+use fm_application::ActiveWindow;
 use fm_application::UiDependencies;
 use fm_domain::{FileNode, NodeType, SortMode};
 
@@ -124,8 +125,8 @@ impl ExplorerWindow {
     }
 
     fn mark_as_active(&self) {
-        if let Ok(mut guard) = self.deps.active_window_id.lock() {
-            *guard = Some(self.id);
+        if let Ok(mut guard) = self.deps.active_window.lock() {
+            *guard = Some(ActiveWindow::Explorer(self.id));
         }
     }
 

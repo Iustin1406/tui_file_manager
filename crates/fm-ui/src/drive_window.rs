@@ -1,6 +1,6 @@
 use appcui::dialogs;
 use appcui::prelude::*;
-use fm_application::UiDependencies;
+use fm_application::{ActiveWindow, UiDependencies};
 use fm_domain::DriveEntry;
 
 #[derive(Clone, Copy, Eq, PartialEq)]
@@ -38,6 +38,8 @@ impl From<DriveEntry> for DriveItem {
 pub struct DriveWindow {
     deps: UiDependencies,
 
+    window_id: u32,
+
     back_button: Handle<Button>,
     forward_button: Handle<Button>,
     refresh_button: Handle<Button>,
@@ -53,17 +55,18 @@ pub struct DriveWindow {
 }
 
 impl DriveWindow {
-    pub fn new(deps: UiDependencies) -> Self {
+    pub fn new(deps: UiDependencies, window_id: u32) -> Self {
         let root_id = "root".to_string();
         let root_name = "Google Drive".to_string();
 
         let mut window = Self {
             base: Window::new(
-                "Google Drive",
+                &format!("Google Drive {}", window_id),
                 layout!("a:c,w:70%,h:60%"),
                 window::Flags::Sizeable,
             ),
             deps,
+            window_id,
 
             back_button: Handle::None,
             forward_button: Handle::None,
@@ -292,10 +295,18 @@ impl DriveWindow {
 
         self.refresh();
     }
+
+    pub fn id(&self) -> u32 {
+        self.window_id
+    }
 }
 
 impl WindowEvents for DriveWindow {
     fn on_activate(&mut self) {
+        if let Ok(mut active_window) = self.deps.active_window.lock() {
+            *active_window = Some(ActiveWindow::Drive(self.window_id));
+        }
+
         if !self.initialized {
             self.refresh();
             self.initialized = true;

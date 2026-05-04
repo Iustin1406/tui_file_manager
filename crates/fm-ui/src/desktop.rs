@@ -1,6 +1,7 @@
 use appcui::dialogs;
 use appcui::prelude::*;
 use appcui::ui::appbar::*;
+use fm_application::ActiveWindow;
 use fm_application::UiDependencies;
 
 use crate::drive_window::DriveWindow;
@@ -40,8 +41,11 @@ use std::time::SystemTime;
 )]
 pub struct MyDesktop {
     deps: UiDependencies,
+    // next_index is used to assign a unique ID to each new ExplorerWindow, which is needed to track the active window
     next_index: u32,
+    next_drive_window_id: u32,
     explorer_windows: Vec<Handle<ExplorerWindow>>,
+    drive_windows: Vec<Handle<DriveWindow>>,
 
     menu_file: Handle<MenuButton>,
     menu_window: Handle<MenuButton>,
@@ -55,7 +59,9 @@ impl MyDesktop {
             base: Desktop::new(),
             deps,
             next_index: 1,
+            next_drive_window_id: 1,
             explorer_windows: Vec::new(),
+            drive_windows: Vec::new(),
             menu_file: Handle::None,
             menu_window: Handle::None,
             menu_view: Handle::None,
@@ -71,20 +77,31 @@ impl MyDesktop {
         let handle = self.add_window(window);
         self.explorer_windows.push(handle);
 
-        if let Ok(mut guard) = self.deps.active_window_id.lock() {
-            *guard = Some(index);
+        if let Ok(mut guard) = self.deps.active_window.lock() {
+            *guard = Some(ActiveWindow::Explorer(index));
         }
     }
 
     fn active_explorer_handle(&self) -> Option<Handle<ExplorerWindow>> {
-        let active_id = self
-            .deps
-            .active_window_id
-            .lock()
-            .ok()
-            .and_then(|guard| *guard)?;
+        let active_id = match self.active_window()? {
+            ActiveWindow::Explorer(id) => id,
+            ActiveWindow::Drive(_) => return None,
+        };
 
         self.explorer_windows.iter().copied().find(|handle| {
+            self.windowt(*handle)
+                .map(|window| window.id() == active_id)
+                .unwrap_or(false)
+        })
+    }
+
+    fn active_drive_handle(&self) -> Option<Handle<DriveWindow>> {
+        let active_id = match self.active_window()? {
+            ActiveWindow::Drive(id) => id,
+            ActiveWindow::Explorer(_) => return None,
+        };
+
+        self.drive_windows.iter().copied().find(|handle| {
             self.windowt(*handle)
                 .map(|window| window.id() == active_id)
                 .unwrap_or(false)
@@ -138,9 +155,22 @@ impl MyDesktop {
             mydesktop::Commands::FileDeletePermanently => {
                 self.delete_permanently_in_active_window();
             }
-            mydesktop::Commands::FileNewDirectory => {
-                self.create_directory_in_active_window();
-            }
+            mydesktop::Commands::FileNewDirectory => match self.active_window() {
+                Some(ActiveWindow::Explorer(_id)) => {
+                    self.create_directory_in_active_window();
+                }
+
+                Some(ActiveWindow::Drive(_id)) => {
+                    dialogs::message(
+                        "Google Drive",
+                        "Create Drive folder will be implemented next.",
+                    );
+                }
+
+                None => {
+                    dialogs::error("Error", "No active window selected.");
+                }
+            },
             mydesktop::Commands::FileProperties => {
                 self.show_properties_in_active_window();
             }
@@ -169,6 +199,10 @@ impl MyDesktop {
                 self.close();
             }
         }
+    }
+
+    fn active_window(&self) -> Option<ActiveWindow> {
+        self.deps.active_window.lock().ok().and_then(|guard| *guard)
     }
 
     fn copy_in_active_window(&mut self) {
@@ -469,8 +503,18 @@ impl MyDesktop {
     }
 
     fn open_drive_window(&mut self) {
+        let window_id = self.next_drive_window_id;
+        self.next_drive_window_id += 1;
+
         let deps = self.deps.clone();
-        self.add_window(DriveWindow::new(deps));
+        let window = DriveWindow::new(deps, window_id);
+        let handle = self.add_window(window);
+
+        self.drive_windows.push(handle);
+
+        if let Ok(mut guard) = self.deps.active_window.lock() {
+            *guard = Some(ActiveWindow::Drive(window_id));
+        }
     }
 }
 

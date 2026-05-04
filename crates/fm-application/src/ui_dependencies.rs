@@ -1,10 +1,10 @@
 use std::sync::{Arc, Mutex};
 
 use crate::{
-    ClipboardState, CopySelectionUseCase, CreateDirectoryUseCase, DeletePermanentlyUseCase,
-    FileSystemPort, GetEntryPropertiesUseCase, ListDriveFolderUseCase, MoveSelectionUseCase,
-    MoveToTrashUseCase, OpenEntryUseCase, PasteEntriesUseCase, PreviewEntryUseCase,
-    RefreshDriveFolderUseCase, RenameEntryUseCase,
+    ActiveWindow, ClipboardState, CopySelectionUseCase, CreateDirectoryUseCase,
+    DeletePermanentlyUseCase, FileSystemPort, GetEntryPropertiesUseCase, ListDriveFolderUseCase,
+    MoveSelectionUseCase, MoveToTrashUseCase, OpenEntryUseCase, PasteEntriesUseCase,
+    PreviewEntryUseCase, RefreshDriveFolderUseCase, RenameEntryUseCase,
 };
 
 #[derive(Clone)]
@@ -15,7 +15,7 @@ pub struct UiDependencies {
     pub copy_selection: Arc<CopySelectionUseCase>,
     pub move_selection: Arc<MoveSelectionUseCase>,
     pub paste_entries: Arc<PasteEntriesUseCase>,
-    pub active_window_id: Arc<Mutex<Option<u32>>>,
+    pub active_window: Arc<Mutex<Option<ActiveWindow>>>,
     pub move_to_trash: Arc<MoveToTrashUseCase>,
     pub delete_permanently: Arc<DeletePermanentlyUseCase>,
     pub create_directory: Arc<CreateDirectoryUseCase>,

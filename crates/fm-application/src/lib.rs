@@ -1,3 +1,4 @@
+pub mod active_window;
 pub mod clipboard;
 pub mod ports;
 pub mod ui_dependencies;
@@ -17,6 +18,7 @@ pub use use_cases::paste_entries::PasteEntriesUseCase;
 pub use use_cases::preview_entry::PreviewEntryUseCase;
 pub use use_cases::rename_entry::RenameEntryUseCase;
 
+pub use active_window::ActiveWindow;
 pub use ports::DrivePort;
 pub use use_cases::list_drive_folder::ListDriveFolderUseCase;
 pub use use_cases::refresh_drive_folder::RefreshDriveFolderUseCase;
