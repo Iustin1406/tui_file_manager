@@ -161,10 +161,7 @@ impl MyDesktop {
                 }
 
                 Some(ActiveWindow::Drive(_id)) => {
-                    dialogs::message(
-                        "Google Drive",
-                        "Create Drive folder will be implemented next.",
-                    );
+                    self.create_directory_in_drive_window();
                 }
 
                 None => {
@@ -514,6 +511,33 @@ impl MyDesktop {
 
         if let Ok(mut guard) = self.deps.active_window.lock() {
             *guard = Some(ActiveWindow::Drive(window_id));
+        }
+    }
+
+    fn create_directory_in_drive_window(&mut self) {
+        let Some(drive_handle) = self.active_drive_handle() else {
+            dialogs::error("New Folder", "No active DriveWindow");
+            return;
+        };
+
+        let result = dialogs::input::<String>(
+            "New Drive Folder",
+            "Folder name:",
+            Some(String::new()),
+            Some(validate_new_directory_input),
+        );
+
+        let Some(folder_name) = result else {
+            return;
+        };
+
+        let Some(window) = self.window_mut(drive_handle) else {
+            dialogs::error("New Folder", "Active DriveWindow handle is invalid");
+            return;
+        };
+
+        if let Err(err) = window.create_folder(&folder_name) {
+            dialogs::error("New Folder", &err.to_string());
         }
     }
 }

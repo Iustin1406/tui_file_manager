@@ -82,7 +82,7 @@ impl GoogleDriveAdapter {
             .list()
             .q(&query)
             .param("fields", "files(id,name,mimeType)")
-            .add_scope(google_drive3::api::Scope::Readonly)
+            .add_scope(google_drive3::api::Scope::Full)
             .doit()
             .await
             .map_err(to_io_error)?;
@@ -123,6 +123,35 @@ impl GoogleDriveAdapter {
 
         Ok(())
     }
+
+    async fn create_folder_async(&self, parent_id: &str, name: &str) -> io::Result<DriveEntry> {
+        let hub = self.build_hub().await?;
+
+        let folder_metadata = File {
+            name: Some(name.to_string()),
+            mime_type: Some(DRIVE_FOLDER_MIME_TYPE.to_string()),
+            parents: Some(vec![parent_id.to_string()]),
+            ..Default::default()
+        };
+
+        let empty_content = std::io::Cursor::new(Vec::<u8>::new());
+
+        let (_, created_file) = hub
+            .files()
+            .create(folder_metadata)
+            .param("fields", "id,name,mimeType")
+            .add_scope(google_drive3::api::Scope::Full)
+            .upload(empty_content, "application/octet-stream".parse().unwrap())
+            .await
+            .map_err(to_io_error)?;
+
+        file_to_drive_entry(created_file).ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::Other,
+                "Google Drive did not return created folder metadata",
+            )
+        })
+    }
 }
 
 impl DrivePort for GoogleDriveAdapter {
@@ -149,6 +178,15 @@ impl DrivePort for GoogleDriveAdapter {
         self.store_cached_folder(folder_id, entries.clone())?;
 
         Ok(entries)
+    }
+
+    fn create_folder(&self, parent_id: &str, name: &str) -> io::Result<DriveEntry> {
+        let runtime = tokio::runtime::Runtime::new()?;
+        let entry = runtime.block_on(self.create_folder_async(parent_id, name))?;
+
+        self.remove_cached_folder(parent_id)?;
+
+        Ok(entry)
     }
 }
 

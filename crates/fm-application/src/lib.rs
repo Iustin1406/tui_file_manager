@@ -20,5 +20,6 @@ pub use use_cases::rename_entry::RenameEntryUseCase;
 
 pub use active_window::ActiveWindow;
 pub use ports::DrivePort;
+pub use use_cases::create_drive_folder::CreateDriveFolderUseCase;
 pub use use_cases::list_drive_folder::ListDriveFolderUseCase;
 pub use use_cases::refresh_drive_folder::RefreshDriveFolderUseCase;

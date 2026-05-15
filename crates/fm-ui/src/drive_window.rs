@@ -299,6 +299,16 @@ impl DriveWindow {
     pub fn id(&self) -> u32 {
         self.window_id
     }
+
+    pub fn create_folder(&mut self, name: &str) -> std::io::Result<()> {
+        self.deps
+            .create_drive_folder
+            .execute(&self.current_folder_id, name)?;
+
+        self.refresh();
+
+        Ok(())
+    }
 }
 
 impl WindowEvents for DriveWindow {

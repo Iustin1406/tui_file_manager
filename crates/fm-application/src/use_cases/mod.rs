@@ -9,5 +9,6 @@ pub mod paste_entries;
 pub mod preview_entry;
 pub mod rename_entry;
 
+pub mod create_drive_folder;
 pub mod list_drive_folder;
 pub mod refresh_drive_folder;

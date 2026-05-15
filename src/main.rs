@@ -1,10 +1,10 @@
 use std::sync::{Arc, Mutex};
 
 use fm_application::{
-    ClipboardState, CopySelectionUseCase, CreateDirectoryUseCase, DeletePermanentlyUseCase,
-    GetEntryPropertiesUseCase, ListDriveFolderUseCase, MoveSelectionUseCase, MoveToTrashUseCase,
-    OpenEntryUseCase, PasteEntriesUseCase, PreviewEntryUseCase, RefreshDriveFolderUseCase,
-    RenameEntryUseCase, UiDependencies,
+    ClipboardState, CopySelectionUseCase, CreateDirectoryUseCase, CreateDriveFolderUseCase,
+    DeletePermanentlyUseCase, GetEntryPropertiesUseCase, ListDriveFolderUseCase,
+    MoveSelectionUseCase, MoveToTrashUseCase, OpenEntryUseCase, PasteEntriesUseCase,
+    PreviewEntryUseCase, RefreshDriveFolderUseCase, RenameEntryUseCase, UiDependencies,
 };
 use fm_infra::{GoogleDriveAdapter, StdFileSystem};
 
@@ -19,8 +19,38 @@ fn main() -> Result<(), appcui::system::Error> {
         project_root.join("config/token.json"),
     ));
 
+    let use_ui = true; // change to false to run in CLI mode for testing Google Drive integration
+
+    if !use_ui {
+        println!("Running in CLI mode (Google Drive auth/debug)...");
+
+        let list_usecase = ListDriveFolderUseCase::new(drive.clone());
+
+        match list_usecase.execute("root") {
+            Ok(entries) => {
+                println!("Google Drive root:");
+                println!("Entries found: {}", entries.len());
+
+                for entry in entries.iter().take(10) {
+                    println!(
+                        "[{}] {} ({})",
+                        if entry.is_folder { "DIR" } else { "FILE" },
+                        entry.name,
+                        entry.id
+                    );
+                }
+            }
+            Err(err) => {
+                println!("Error: {}", err);
+            }
+        }
+
+        return Ok(());
+    }
+
     let list_drive_folder = Arc::new(ListDriveFolderUseCase::new(drive.clone()));
-    let refresh_drive_folder = Arc::new(RefreshDriveFolderUseCase::new(drive));
+    let refresh_drive_folder = Arc::new(RefreshDriveFolderUseCase::new(drive.clone()));
+    let create_drive_folder = Arc::new(CreateDriveFolderUseCase::new(drive.clone()));
 
     let rename_entry = Arc::new(RenameEntryUseCase::new(fs.clone()));
     let copy_selection = Arc::new(CopySelectionUseCase::new(clipboard.clone()));
@@ -49,6 +79,7 @@ fn main() -> Result<(), appcui::system::Error> {
         preview_entry,
         list_drive_folder,
         refresh_drive_folder,
+        create_drive_folder,
     };
 
     fm_ui::run(deps)
