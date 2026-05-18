@@ -5,7 +5,7 @@ use fm_application::{
     DeletePermanentlyUseCase, GetEntryPropertiesUseCase, ListDriveFolderUseCase,
     MoveSelectionUseCase, MoveToTrashUseCase, OpenEntryUseCase, PasteEntriesUseCase,
     PreviewEntryUseCase, RefreshDriveFolderUseCase, RenameDriveItemUseCase, RenameEntryUseCase,
-    UiDependencies,
+    UiDependencies, UploadDriveFileUseCase, UploadDriveFolderUseCase,
 };
 use fm_infra::{GoogleDriveAdapter, StdFileSystem};
 
@@ -53,6 +53,8 @@ fn main() -> Result<(), appcui::system::Error> {
     let refresh_drive_folder = Arc::new(RefreshDriveFolderUseCase::new(drive.clone()));
     let create_drive_folder = Arc::new(CreateDriveFolderUseCase::new(drive.clone()));
     let rename_drive_item = Arc::new(RenameDriveItemUseCase::new(drive.clone()));
+    let upload_drive_file = Arc::new(UploadDriveFileUseCase::new(drive.clone()));
+    let upload_drive_folder = Arc::new(UploadDriveFolderUseCase::new(drive.clone()));
 
     let rename_entry = Arc::new(RenameEntryUseCase::new(fs.clone()));
     let copy_selection = Arc::new(CopySelectionUseCase::new(clipboard.clone()));
@@ -83,6 +85,9 @@ fn main() -> Result<(), appcui::system::Error> {
         refresh_drive_folder,
         create_drive_folder,
         rename_drive_item,
+        upload_drive_file,
+        upload_drive_folder,
+        pending_drive_refresh: Arc::new(Mutex::new(Vec::new())),
     };
 
     fm_ui::run(deps)

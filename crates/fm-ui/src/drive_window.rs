@@ -335,9 +335,38 @@ impl DriveWindow {
 
         Ok(())
     }
+
+    // get the id of the currently selected item for use in file upload (to specify parent folder)
+    pub fn current_folder_id(&self) -> String {
+        self.current_folder_id.clone()
+    }
+
+    // checks if the current folder was marked for refresh (after an upload), and if so refreshes it and unmarks it
+    fn refresh_if_pending(&mut self) {
+        let should_refresh = {
+            let Ok(mut pending) = self.deps.pending_drive_refresh.lock() else {
+                return;
+            };
+
+            if let Some(index) = pending
+                .iter()
+                .position(|folder_id| folder_id == &self.current_folder_id)
+            {
+                pending.remove(index);
+                true
+            } else {
+                false
+            }
+        };
+
+        if should_refresh {
+            self.refresh();
+        }
+    }
 }
 
 impl WindowEvents for DriveWindow {
+    // first activation lists normally but subsequent activations check if the current folder needs refreshing (after an upload)
     fn on_activate(&mut self) {
         if let Ok(mut active_window) = self.deps.active_window.lock() {
             *active_window = Some(ActiveWindow::Drive(self.window_id));
@@ -346,7 +375,10 @@ impl WindowEvents for DriveWindow {
         if !self.initialized {
             self.refresh();
             self.initialized = true;
+            return;
         }
+
+        self.refresh_if_pending();
     }
 }
 

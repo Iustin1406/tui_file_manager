@@ -5,6 +5,7 @@ use fm_application::ActiveWindow;
 use fm_application::UiDependencies;
 
 use crate::drive_window::DriveWindow;
+use crate::local_picker_window::LocalPickerWindow;
 use crate::window::ExplorerWindow;
 
 use crate::preview_window::PreviewWindow;
@@ -37,6 +38,7 @@ use std::time::SystemTime;
         HelpAbout,
         Quit,
         DriveOpen,
+        DriveUpload,
     ]
 )]
 pub struct MyDesktop {
@@ -197,6 +199,10 @@ impl MyDesktop {
 
             mydesktop::Commands::DriveOpen => {
                 self.open_drive_window();
+            }
+
+            mydesktop::Commands::DriveUpload => {
+                self.upload_to_active_drive_window();
             }
 
             mydesktop::Commands::HelpKeybindings => {}
@@ -579,6 +585,23 @@ impl MyDesktop {
             dialogs::error("Rename", &err.to_string());
         }
     }
+
+    fn upload_to_active_drive_window(&mut self) {
+        let Some(drive_handle) = self.active_drive_handle() else {
+            dialogs::error("Upload", "No active DriveWindow");
+            return;
+        };
+
+        let Some(drive_window) = self.window_mut(drive_handle) else {
+            dialogs::error("Upload", "Active DriveWindow handle is invalid");
+            return;
+        };
+
+        let drive_parent_id = drive_window.current_folder_id();
+        let deps = self.deps.clone();
+
+        self.add_window(LocalPickerWindow::new_for_upload(deps, drive_parent_id));
+    }
 }
 
 impl DesktopEvents for MyDesktop {
@@ -590,6 +613,7 @@ impl DesktopEvents for MyDesktop {
                 class:MyDesktop,items:[
                     {'&Open',cmd:FileOpen},
                     {'Open &Google Drive',cmd:DriveOpen},
+                    {'Upload to &Drive',cmd:DriveUpload},
                     {'&Preview',cmd:FilePreview},
                     {'&Rename',cmd:FileRename},
                     {'&Copy',cmd:FileCopy},

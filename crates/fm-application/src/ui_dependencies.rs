@@ -5,7 +5,7 @@ use crate::{
     CreateDriveFolderUseCase, DeletePermanentlyUseCase, FileSystemPort, GetEntryPropertiesUseCase,
     ListDriveFolderUseCase, MoveSelectionUseCase, MoveToTrashUseCase, OpenEntryUseCase,
     PasteEntriesUseCase, PreviewEntryUseCase, RefreshDriveFolderUseCase, RenameDriveItemUseCase,
-    RenameEntryUseCase,
+    RenameEntryUseCase, UploadDriveFileUseCase, UploadDriveFolderUseCase,
 };
 
 #[derive(Clone)]
@@ -28,4 +28,8 @@ pub struct UiDependencies {
     pub refresh_drive_folder: Arc<RefreshDriveFolderUseCase>,
     pub create_drive_folder: Arc<CreateDriveFolderUseCase>,
     pub rename_drive_item: Arc<RenameDriveItemUseCase>,
+    pub upload_drive_file: Arc<UploadDriveFileUseCase>,
+    pub upload_drive_folder: Arc<UploadDriveFolderUseCase>,
+    //list of drive folder ids that need refreshing after an upload
+    pub pending_drive_refresh: Arc<Mutex<Vec<String>>>,
 }

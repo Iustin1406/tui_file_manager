@@ -3,6 +3,7 @@ use fm_application::UiDependencies;
 
 pub mod desktop;
 pub mod drive_window;
+pub mod local_picker_window;
 pub mod preview_window;
 pub mod window;
 

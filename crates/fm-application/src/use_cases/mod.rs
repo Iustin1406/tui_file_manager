@@ -13,3 +13,5 @@ pub mod create_drive_folder;
 pub mod list_drive_folder;
 pub mod refresh_drive_folder;
 pub mod rename_drive_item;
+pub mod upload_drive_file;
+pub mod upload_drive_folder;
