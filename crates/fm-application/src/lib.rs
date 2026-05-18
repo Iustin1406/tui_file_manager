@@ -23,3 +23,4 @@ pub use ports::DrivePort;
 pub use use_cases::create_drive_folder::CreateDriveFolderUseCase;
 pub use use_cases::list_drive_folder::ListDriveFolderUseCase;
 pub use use_cases::refresh_drive_folder::RefreshDriveFolderUseCase;
+pub use use_cases::rename_drive_item::RenameDriveItemUseCase;

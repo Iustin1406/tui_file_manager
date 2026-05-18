@@ -4,7 +4,8 @@ use fm_application::{
     ClipboardState, CopySelectionUseCase, CreateDirectoryUseCase, CreateDriveFolderUseCase,
     DeletePermanentlyUseCase, GetEntryPropertiesUseCase, ListDriveFolderUseCase,
     MoveSelectionUseCase, MoveToTrashUseCase, OpenEntryUseCase, PasteEntriesUseCase,
-    PreviewEntryUseCase, RefreshDriveFolderUseCase, RenameEntryUseCase, UiDependencies,
+    PreviewEntryUseCase, RefreshDriveFolderUseCase, RenameDriveItemUseCase, RenameEntryUseCase,
+    UiDependencies,
 };
 use fm_infra::{GoogleDriveAdapter, StdFileSystem};
 
@@ -51,6 +52,7 @@ fn main() -> Result<(), appcui::system::Error> {
     let list_drive_folder = Arc::new(ListDriveFolderUseCase::new(drive.clone()));
     let refresh_drive_folder = Arc::new(RefreshDriveFolderUseCase::new(drive.clone()));
     let create_drive_folder = Arc::new(CreateDriveFolderUseCase::new(drive.clone()));
+    let rename_drive_item = Arc::new(RenameDriveItemUseCase::new(drive.clone()));
 
     let rename_entry = Arc::new(RenameEntryUseCase::new(fs.clone()));
     let copy_selection = Arc::new(CopySelectionUseCase::new(clipboard.clone()));
@@ -80,6 +82,7 @@ fn main() -> Result<(), appcui::system::Error> {
         list_drive_folder,
         refresh_drive_folder,
         create_drive_folder,
+        rename_drive_item,
     };
 
     fm_ui::run(deps)

@@ -137,9 +137,19 @@ impl MyDesktop {
             mydesktop::Commands::FilePreview => {
                 self.preview_in_active_window();
             }
-            mydesktop::Commands::FileRename => {
-                self.rename_in_active_window();
-            }
+            mydesktop::Commands::FileRename => match self.active_window() {
+                Some(ActiveWindow::Explorer(_)) => {
+                    self.rename_in_active_window();
+                }
+
+                Some(ActiveWindow::Drive(_)) => {
+                    self.rename_in_drive_window();
+                }
+
+                None => {
+                    dialogs::error("Rename", "No active window selected.");
+                }
+            },
             mydesktop::Commands::FileCopy => {
                 self.copy_in_active_window();
             }
@@ -538,6 +548,35 @@ impl MyDesktop {
 
         if let Err(err) = window.create_folder(&folder_name) {
             dialogs::error("New Folder", &err.to_string());
+        }
+    }
+
+    fn rename_in_drive_window(&mut self) {
+        let Some(drive_handle) = self.active_drive_handle() else {
+            dialogs::error("Rename", "No active DriveWindow");
+            return;
+        };
+
+        let Some(window) = self.window_mut(drive_handle) else {
+            dialogs::error("Rename", "Active DriveWindow handle is invalid");
+            return;
+        };
+
+        let initial_name = window.selected_item_name();
+
+        let result = dialogs::input::<String>(
+            "Rename Drive Item",
+            "New name:",
+            initial_name,
+            Some(validate_rename_input),
+        );
+
+        let Some(new_name) = result else {
+            return;
+        };
+
+        if let Err(err) = window.rename_selected_to(&new_name) {
+            dialogs::error("Rename", &err.to_string());
         }
     }
 }

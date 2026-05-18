@@ -309,6 +309,32 @@ impl DriveWindow {
 
         Ok(())
     }
+
+    // get the name of the currently selected item for display in the rename dialog
+    pub fn selected_item_name(&self) -> Option<String> {
+        let tree = self.control(self.tree)?;
+        let current_item = tree.current_item()?;
+
+        Some(current_item.value().name.clone())
+    }
+
+    pub fn rename_selected_to(&mut self, new_name: &str) -> std::io::Result<()> {
+        let tree = self.control(self.tree).ok_or_else(|| {
+            std::io::Error::new(std::io::ErrorKind::NotFound, "TreeView not found")
+        })?;
+
+        let current_item = tree
+            .current_item()
+            .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "No item selected"))?;
+
+        let item = current_item.value();
+
+        self.deps.rename_drive_item.execute(&item.id, new_name)?;
+
+        self.refresh();
+
+        Ok(())
+    }
 }
 
 impl WindowEvents for DriveWindow {

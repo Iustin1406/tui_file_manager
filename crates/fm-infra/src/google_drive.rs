@@ -152,6 +152,38 @@ impl GoogleDriveAdapter {
             )
         })
     }
+
+    async fn rename_item_async(&self, file_id: &str, new_name: &str) -> io::Result<DriveEntry> {
+        let hub = self.build_hub().await?;
+
+        // only metadata is changed (the item name)
+        let metadata = File {
+            name: Some(new_name.to_string()),
+            ..Default::default()
+        };
+
+        // google-drive3 requires update() to go through upload flow,
+        // so we send an empty body to keep the existing content unchanged
+        let empty_content = std::io::Cursor::new(Vec::<u8>::new());
+
+        let mime_type = "application/octet-stream".parse().map_err(to_io_error)?;
+
+        let (_, updated_file) = hub
+            .files()
+            .update(metadata, file_id)
+            .param("fields", "id,name,mimeType")
+            .add_scope(google_drive3::api::Scope::Full)
+            .upload(empty_content, mime_type)
+            .await
+            .map_err(to_io_error)?;
+
+        file_to_drive_entry(updated_file).ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::Other,
+                "Google Drive did not return renamed item metadata",
+            )
+        })
+    }
 }
 
 impl DrivePort for GoogleDriveAdapter {
@@ -185,6 +217,21 @@ impl DrivePort for GoogleDriveAdapter {
         let entry = runtime.block_on(self.create_folder_async(parent_id, name))?;
 
         self.remove_cached_folder(parent_id)?;
+
+        Ok(entry)
+    }
+
+    fn rename_item(&self, file_id: &str, new_name: &str) -> io::Result<DriveEntry> {
+        let runtime = tokio::runtime::Runtime::new()?;
+        let entry = runtime.block_on(self.rename_item_async(file_id, new_name))?;
+
+        let mut cache = self
+            .folder_cache
+            .lock()
+            .map_err(|_| io::Error::new(io::ErrorKind::Other, "Drive cache lock poisoned"))?;
+
+        // Invalidate all cached folders containing this item, since we don't track parent-child relationships in cache
+        cache.clear();
 
         Ok(entry)
     }
